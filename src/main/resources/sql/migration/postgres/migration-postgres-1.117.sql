@@ -1,0 +1,1 @@
+ALTER TABLE carrier ADD mcc character varying(20);

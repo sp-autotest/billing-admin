@@ -1,0 +1,1 @@
+ALTER TABLE carrier ADD mcc VARCHAR2(20 CHAR);

@@ -1,0 +1,10 @@
+/* Billing styles */
+.reject-row .x-grid-cell {
+    background-color: rgba(255, 147, 137, 0.43);
+    color: #000000;
+}
+
+.reject-cell .x-grid-cell-inner{
+    background-color: red;
+    color: #000000;
+}

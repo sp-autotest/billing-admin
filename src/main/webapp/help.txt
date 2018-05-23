@@ -1,0 +1,4 @@
+https://github.com/dobromyslov/sencha-extjs-maven
+
+in bootstrap.css
+@import 'ext/packages/ext-theme-crisp/build/resources/ext-theme-crisp-all.css';

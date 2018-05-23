@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<!DOCTYPE Configure PUBLIC "-//Jetty//Configure//EN" "http://www.eclipse.org/jetty/configure.dtd">
+<Configure id="Server" class="org.eclipse.jetty.server.Server">
+	<New id="DSTest" class="org.eclipse.jetty.plus.jndi.Resource">
+        <Arg></Arg>
+        <Arg>jdbc/RBS2DataSource</Arg>
+		<Arg>
+			<New class="com.mchange.v2.c3p0.ComboPooledDataSource">
+				<Set name="driverClass">org.postgresql.Driver</Set>
+				<Set name="jdbcUrl">jdbc:postgresql://127.0.0.1:5432/rbsbase</Set>
+				<Set name="user">rbs</Set>
+				<Set name="password">rbs</Set>
+			</New>
+            <!--<New class="com.mchange.v2.c3p0.ComboPooledDataSource">-->
+                <!--<Set name="driverClass">oracle.jdbc.driver.OracleDriver</Set>-->
+                <!--<Set name="jdbcUrl">jdbc:oracle:thin:@10.77.5.13:1522:test01</Set>-->
+                <!--<Set name="user">alfatest</Set>-->
+                <!--<Set name="password">alfatest</Set>-->
+            <!--</New>-->
+		</Arg>
+	</New>
+</Configure>

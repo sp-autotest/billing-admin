@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema attributeFormDefault="unqualified" elementFormDefault="qualified" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="reason" type="xs:string"/>
+  <xs:element name="ticketCurrency" type="xs:string"/>
+  <xs:element name="expiryDate" type="xs:string"/>
+  <xs:element name="itemsError">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="itemError" maxOccurs="unbounded" minOccurs="0"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="typeDocument" type="xs:string"/>
+  <xs:element name="ticketNumber" type="xs:string"/>
+  <xs:element name="approvalCode" type="xs:string"/>
+  <xs:element name="ticketAmount" type="xs:string"/>
+  <xs:element name="Receipt">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="statusProcess"/>
+        <xs:element ref="itemsError"/>
+      </xs:sequence>
+      <xs:attribute type="xs:string" name="SourceFileName"/>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="statusProcess" type="xs:string"/>
+  <xs:element name="itemError">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="ticketNumber"/>
+        <xs:element ref="ticketAmount"/>
+        <xs:element ref="ticketCurrency"/>
+        <xs:element ref="expiryDate"/>
+        <xs:element ref="approvalCode"/>
+        <xs:element ref="typeDocument"/>
+        <xs:element ref="reason"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>
