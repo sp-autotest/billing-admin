@@ -40,7 +40,7 @@ public class BillingSystem {
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "billing_systems_emails", joinColumns = @JoinColumn(name = "id"))
-    @Column(name = "emails", columnDefinition = "varchar2(200)")
+    @Column(name = "emails", columnDefinition = "varchar(200)")
     private Set<String> emails = new HashSet<>();
 
     @Column(name = "mask_regexp")

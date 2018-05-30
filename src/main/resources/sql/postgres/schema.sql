@@ -160,6 +160,35 @@ create sequence SEQ_PROCESSING_RECORD;
 create sequence SEQ_USER;
 create sequence SEQ_USER_HISTORY;
 
+CREATE TABLE billing_system
+(
+  id           BIGINT NOT NULL
+    CONSTRAINT billing_system_pkey
+    PRIMARY KEY,
+  created_date TIMESTAMP,
+  enabled      BOOLEAN,
+  host_address VARCHAR(255),
+  login        VARCHAR(255),
+  mask_regexp  VARCHAR(255),
+  name         VARCHAR(255)
+    CONSTRAINT billing_system_name_key
+    UNIQUE,
+  password     VARCHAR(255),
+  path         VARCHAR(255),
+  sftp_port    INTEGER,
+  carrier_id   BIGINT
+    CONSTRAINT fk79be9c7389ba607
+    REFERENCES carrier
+);
+
+CREATE TABLE billing_systems_emails
+(
+  id     BIGINT NOT NULL
+    CONSTRAINT fk283ec716a66b4f32
+    REFERENCES billing_system,
+  emails VARCHAR(200)
+);
+
 --admin/pivot43\very
 insert into users (updated_at, credentials_expired_at, is_account_expired, is_enabled, is_locked, password, password_history, username, id, roles) values (now(), null, '0', '1', '0', '95d05639c6dca65c9d68cdd55415af8b11631206ba97e1713415942e64e1006ad414fcb289e95889', '95d05639c6dca65c9d68cdd55415af8b11631206ba97e1713415942e64e1006ad414fcb289e95889;', 'admin', nextval('SEQ_USER'), null);
 
@@ -522,6 +551,7 @@ insert into billing_terminal (terminal_id, country_code) values ('666190','GE');
 
 insert into system_settings (id,name,value) values (nextval('SEQ_OPTIONS'),'billing.converter.count_available_reject_record','3');
 insert into system_settings (id,name,value) values (nextval('SEQ_OPTIONS'),'report.type','STANDARD');
+insert into system_settings (id,name,value) values (nextval('SEQ_OPTIONS'),'automate.enabled','false');
 
 create table carrier (
   id bigint not null,

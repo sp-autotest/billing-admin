@@ -16,11 +16,11 @@ public class GlobalAutomateService {
     private SystemSettingsService systemSettingsService;
 
     public String getSchedulingStatusString() {
-        return systemSettingsService.getBoolean(AUTOMATE_ENABLED_GLOBAL) ? "automatization enabled" : "automatization disabled";
+        return systemSettingsService.getBoolean(AUTOMATE_ENABLED_GLOBAL, false) ? "automatization enabled" : "automatization disabled";
     }
 
     public boolean isDisabled() {
-        return !systemSettingsService.getBoolean(AUTOMATE_ENABLED_GLOBAL);
+        return !systemSettingsService.getBoolean(AUTOMATE_ENABLED_GLOBAL, false);
     }
 
 }
