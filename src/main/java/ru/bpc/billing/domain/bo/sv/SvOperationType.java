@@ -15,9 +15,14 @@ public enum SvOperationType implements OperationType {
     //fake 2 values, which won't find in bo-file
     US_ON_US_BSP_VISA("7980","US VI"),
     US_ON_US_BSP_MC("7981","US MC"),
+    //new 2 values
+    VI_US("18", "VI_Us"),
+    MC_US("19", "MC_Us"),
     //real nspc values , we can see in bo-file
-    NSPC_ON_US_VISA("92","NSPC-on-Us VISA"),
-    NSPC_ON_US_MC("93","NSPC-on-Us MC");
+    NSPC_ON_US_VISA("92","VI_NSPK"),
+    NSPC_ON_US_MC("93","MC_NSPK");
+//    NSPC_ON_US_VISA("92","NSPC-on-Us VISA"),
+//    NSPC_ON_US_MC("93","NSPC-on-Us MC");
 
     private final String code;
     private final String type;
