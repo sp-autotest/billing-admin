@@ -13,14 +13,13 @@ import javax.annotation.Resource;
 @RequestMapping(value = "/automate")
 public class BoTaskStatusController {
 
-//    @Resource
+    @Resource
     private BoTaskStarterService boTaskStarterService;
 
     @RequestMapping(value = "/boTask", method = RequestMethod.GET)
     @ResponseBody
     public String getStatus() {
-//        return boTaskStarterService.isWorking() ? "running" : "stopped";
-        return "not implemented";
+        return boTaskStarterService.isWorking() ? "running" : "stopped";
     }
 
     @RequestMapping(value = "/boTask/stop", method = RequestMethod.GET)

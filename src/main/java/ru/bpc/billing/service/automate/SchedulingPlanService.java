@@ -27,6 +27,10 @@ public class SchedulingPlanService {
         return systemSettingsService.getString(SCHEDULING_CRON_BSP, "15 30 23 * * *");
     }
 
+    public String getBoCronExpression() {
+        return systemSettingsService.getString(SCHEDULING_CRON_BO, "30 40 23 * * *");
+    }
+
     public void setBspSchedulingPlan(SchedulingDto dto) throws Exception {
         String cronExpressionNew = dto.getSchedulingCronExpression();
         try {
@@ -42,9 +46,8 @@ public class SchedulingPlanService {
         }
     }
 
-    public SchedulingDto getBoSchedulingPlan() {
-        String schedulingCronExpression = systemSettingsService.getString(SCHEDULING_CRON_BO, "15 30 23 * * *");
-        return new SchedulingDto(schedulingCronExpression, "not implemented yet");
+    public String getBoSchedulingPlan() {
+        return systemSettingsService.getString(SCHEDULING_CRON_BO, "15 30 23 * * *");
     }
 
     public void setBoSchedulingPlan(SchedulingDto dto) throws Exception {
@@ -58,8 +61,6 @@ public class SchedulingPlanService {
         if (!oldValue.equals(cronExpressionNew)) {
             log.info("Scheduling bo plan changed, stopping current and rescheduling...");
             systemSettingsService.update(SCHEDULING_CRON_BO, cronExpressionNew);
-//            boTaskStarterService.stop();
-//            boTaskStarterService.reSchedule();
         }
     }
 }

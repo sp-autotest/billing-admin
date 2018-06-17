@@ -85,6 +85,7 @@ Ext.define('BSP.view.automate.AutomateController', {
             success: function (response, options) {
                 var sched = Ext.JSON.decode(response.responseText);
                 Ext.getCmp('cronExpressionBo').setValue(sched.schedulingCronExpression);
+                Ext.getCmp('nextExecutionTimeBO').setValue(sched.nextExecutionTime);
             },
             failure: function (response, options) {
                 console.log('error');

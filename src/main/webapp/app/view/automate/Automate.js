@@ -401,6 +401,14 @@ Ext.define('BSP.view.automate.Automate', {
                                                         padding: '3px',
                                                         value: '-----',
                                                         id: 'cronExpressionBo'
+                                                    },
+                                                    {
+                                                        xtype: 'textfield',
+                                                        anchor: '100%',
+                                                        fieldLabel: 'Next exec:',
+                                                        padding: '3px',
+                                                        value: '-----',
+                                                        id: 'nextExecutionTimeBO'
                                                     }
                                                 ]
                                             }]
