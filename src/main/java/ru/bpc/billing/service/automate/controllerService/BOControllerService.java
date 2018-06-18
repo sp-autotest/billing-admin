@@ -8,10 +8,7 @@ import org.springframework.context.MessageSource;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.stereotype.Service;
 import ru.bpc.billing.controller.dto.*;
-import ru.bpc.billing.domain.FileType;
-import ru.bpc.billing.domain.User;
-import ru.bpc.billing.domain.UserAction;
-import ru.bpc.billing.domain.UserHistory;
+import ru.bpc.billing.domain.*;
 import ru.bpc.billing.domain.billing.BillingFile;
 import ru.bpc.billing.domain.bo.BOFile;
 import ru.bpc.billing.domain.bo.BOFileUploadRequest;
@@ -127,12 +124,10 @@ public class BOControllerService {
         ReportProcessingResultDto resultDto = new ReportProcessingResultDto();
         resultDto.setSuccess(true);
 
-        //List<BillingFileDto> billingDtos = null;
-        List<Long> billingFileIds = null;
+        List<ProcessingFile> processingFiles = null;
         ReportType reportType = ReportType.STANDARD;
         try {
             //billingDtos = objectMapper.readValue(request.getParameter("billingFiles"), referenceBilling);
-            billingFileIds = new ArrayList<>();
             //boDtos = objectMapper.readValue(request.getParameter("boFiles"),referenceBo);
             String reportTypeParam = systemSettingsService.getString(ReportType.SYSTEM_SETTINGS_PARAM_NAME);
             if (StringUtils.isNotBlank(reportTypeParam) ) {
@@ -141,15 +136,17 @@ public class BOControllerService {
         } catch (Exception e) {
             logger.error("Unable to read json values from request for 'billingFiles' and 'boFiles' parameters",e);
         }
-        if ( null == billingFileIds || null == boDtos || billingFileIds.isEmpty() || boDtos.isEmpty() ) {
+        processingFiles = getBspForBo(boDtos);
+
+        if ( null == processingFiles || null == boDtos || processingFiles.isEmpty() || boDtos.isEmpty() ) {
             resultDto.setSuccess(false);
             return resultDto;
         }
         if ( null == reportType ) reportType = ReportType.STANDARD;
 
         List<BillingFile> billingFiles = new ArrayList<>();
-        for (Long billingFileId : billingFileIds) {
-            billingFiles.add((BillingFile)processingFileRepository.findOne(billingFileId));
+        for (ProcessingFile pFile : processingFiles) {
+            billingFiles.add((BillingFile)processingFileRepository.findOne(pFile.getId()));
         }
         List<File> boFiles = new ArrayList<>();
         for (BoDto boDto : boDtos) {
@@ -167,7 +164,7 @@ public class BOControllerService {
             ReportProcessingResult result = reportProcessor.process(billingFiles, boFiles);
             resultDto.setReportProcessingResult(result);
         } catch (Exception e) {
-            logger.error("Error build report for " + billingFileIds + " and " + boDtos, e);
+            logger.error("Error build report for " + boFiles + " and " + billingFiles, e);
             resultDto.setSuccess(false);
             resultDto.setText(e.getMessage());
         }
@@ -177,6 +174,17 @@ public class BOControllerService {
             userHistoryRepository.save(userHistory);
         }
         return resultDto;
+    }
+
+    private List<ProcessingFile> getBspForBo(List<BoDto> boDtos) {
+        List<ProcessingFile> result = new ArrayList<>();
+        for(BoDto bo : boDtos) {
+            String boDate = StringUtils.substringAfterLast(bo.getFileName(),"-").substring(0, 8);
+            List<ProcessingFile> billings = processingFileRepository.getNotProcessedBillings(boDate);
+            result.addAll(billings);
+        }
+
+        return result;
     }
 
 }

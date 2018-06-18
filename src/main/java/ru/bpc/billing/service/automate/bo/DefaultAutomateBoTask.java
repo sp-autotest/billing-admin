@@ -54,6 +54,7 @@ import static ru.bpc.billing.service.automate.AutomateConstants.SERVER_PARAMS_PO
 public class DefaultAutomateBoTask implements AutomateBoTask {
 
     private static final String AUTOMATE_USERNAME = "automate";
+    private static final long BO_FILE_DAYS_DIFFER = 2;
 
     private final ApplicationContext context;
     private final UserRepository userRepository;
@@ -291,15 +292,13 @@ public class DefaultAutomateBoTask implements AutomateBoTask {
     private boolean checkDate(String fileName) {
         String date = fileName.split("_")[1];
         LocalDate fileDate = LocalDate.parse(date, DateTimeFormatter.ofPattern("yyyyMMdd"));
-        //return fileDate.equals(LocalDate.now());
-        return true;
+        //return fileDate.equals(LocalDate.now().minusDays(BO_FILE_DAYS_DIFFER));
+        return fileDate.equals(LocalDate.now());
+        //return true;
     }
 
     private boolean checkMask(String input) {
-        Pattern p = Pattern.compile("([A-Z]{3}_\\d{8})");
-        //Pattern p = Pattern.compile(bs.getMaskRegexp());
-
-//        input = "alphabank_SU_20170217_0001";
+        Pattern p = Pattern.compile("(ALL_\\d{8})");
         Matcher m = p.matcher(input);
         return m.find();
     }
