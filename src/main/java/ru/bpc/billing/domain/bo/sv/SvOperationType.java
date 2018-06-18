@@ -16,11 +16,11 @@ public enum SvOperationType implements OperationType {
     US_ON_US_BSP_VISA("7980","US VI"),
     US_ON_US_BSP_MC("7981","US MC"),
     //new 2 values
-    VI_US("18", "VI_Us"),
-    MC_US("19", "MC_Us"),
+    VI_US("18", "VI_Us"),//добавлены два новых типа операций 18 и 19,
+    MC_US("19", "MC_Us"),//согласно пунктов ТЗ 5.5 и 5.6
     //real nspc values , we can see in bo-file
-    NSPC_ON_US_VISA("92","VI_NSPK"),
-    NSPC_ON_US_MC("93","MC_NSPK");
+    NSPC_ON_US_VISA("92","VI_NSPK"),//изменены два типа операций с кодами 92 и 93,
+    NSPC_ON_US_MC("93","MC_NSPK");//согласно пунктов ТЗ 5.5 и 5.6
 //    NSPC_ON_US_VISA("92","NSPC-on-Us VISA"),
 //    NSPC_ON_US_MC("93","NSPC-on-Us MC");
 

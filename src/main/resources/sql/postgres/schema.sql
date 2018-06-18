@@ -552,6 +552,7 @@ insert into billing_terminal (terminal_id, country_code) values ('666190','GE');
 insert into system_settings (id,name,value) values (nextval('SEQ_OPTIONS'),'billing.converter.count_available_reject_record','3');
 insert into system_settings (id,name,value) values (nextval('SEQ_OPTIONS'),'report.type','STANDARD');
 insert into system_settings (id,name,value) values (nextval('SEQ_OPTIONS'),'automate.enabled','false');
+--добавлены значения системных настроек, имеющиеся на текущий момент в модуле
 insert into system_settings (id,name,value) values (nextval('SEQ_OPTIONS'),'automate.ascKeyPath','/usr/local/jetty-services2/config/billing-admin/secret.asc');
 insert into system_settings (id,name,value) values (nextval('SEQ_OPTIONS'),'automate.keySecret','123');
 insert into system_settings (id,name,value) values (nextval('SEQ_OPTIONS'),'is_refund_as_reversal','true');
@@ -562,6 +563,7 @@ insert into system_settings (id,name,value) values (nextval('SEQ_OPTIONS'),'sche
 insert into system_settings (id,name,value) values (nextval('SEQ_OPTIONS'),'scheduling.cron.bsp','30 44 13 * * *');
 insert into system_settings (id,name,value) values (nextval('SEQ_OPTIONS'),'server.params.bo','{"address":"www.bo_server.com","port":1,"path":"/some/path/to/bo/files/","login":"bo_login","password":"bo_password"}');
 insert into system_settings (id,name,value) values (nextval('SEQ_OPTIONS'),'server.params.posting','{"address":"10.77.5.93","port":8022,"path":"/chroot/postbofile/local/","login":"postbofile","password":"PostBOFile"}');
+--конец добавления настроек
 
 create table carrier (
   id bigint not null,

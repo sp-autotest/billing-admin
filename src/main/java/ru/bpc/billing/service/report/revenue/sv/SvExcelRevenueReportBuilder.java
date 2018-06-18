@@ -115,7 +115,7 @@ public class SvExcelRevenueReportBuilder implements ReportBuilder {
         CellStyleDescriptor currencyOperationStyle2 = getCellStyleDescriptorByCurrency(new CurrencyStyleDescriptor(revenueRow.currencyOperation, true));
         CellStyleDescriptor currencyMpsStyle = getCellStyleDescriptorByCurrency(new CurrencyStyleDescriptor(revenueRow.currencyMps,false));
         CellStyleDescriptor currencyMpsStyle2 = getCellStyleDescriptorByCurrency(new CurrencyStyleDescriptor(revenueRow.currencyMps, true));
-        PoiSSUtil.createCellAndSetValue(row, 0, revenueRow.mps);               //MPS
+        PoiSSUtil.createCellAndSetValue(row, 0, revenueRow.mps);//в крайний левый столбец добавлены значения MPS
         PoiSSUtil.createCellAndSetValue(row, 4, revenueRow.qty);               //кол-во
         String alphabeticCode = null;
         if ( null != revenueRow.currencyOperation ) {
