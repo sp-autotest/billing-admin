@@ -4,6 +4,8 @@ import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
 import ru.bpc.billing.domain.bo.BOFile;
 
+import java.util.List;
+
 /**
  * User: Krainov
  * Date: 15.08.14
@@ -11,4 +13,5 @@ import ru.bpc.billing.domain.bo.BOFile;
  */
 @Repository
 public interface BOFileRepository extends CrudRepository<BOFile,Long> {
+    List<BOFile> findAll();
 }

@@ -96,14 +96,16 @@ public class BOService {
                 return false;
             }
         };
-        List<BoDto> boDtos = new ArrayList<>();
-        Collection<File> files = FileUtils.listFiles(new File(applicationService.getHomeDir(FileType.BO)),fileFilter,null);
-        for (File file : files) {
-            if ( !file.exists() || !file.canRead() ) continue;
-            BoDto boDto = new BoDto();
-            fillDto(boDto,file);
-            boDtos.add(boDto);
-        }
+
+//        List<BoDto> boDtos = new ArrayList<>();
+//        Collection<File> files = FileUtils.listFiles(new File(applicationService.getHomeDir(FileType.BO)),fileFilter,null);
+//        for (File file : files) {
+//            if ( !file.exists() || !file.canRead() ) continue;
+//            BoDto boDto = new BoDto();
+//            fillDto(boDto,file);
+//            boDtos.add(boDto);
+//        }
+        List<BoDto> boDtos = getUploadedBo(fileFilter);
         BoDto dto = new BoDto();
         dto.setChildren(boDtos);
         dto.setSuccess(true);
@@ -127,6 +129,18 @@ public class BOService {
         } catch (IOException e) {
             logger.error("Error get 'creationTime' or 'size' attributes for file: " + file,e);
         }
+    }
+
+    public List<BoDto> getUploadedBo(IOFileFilter fileFilter) {
+        List<BoDto> boDtos = new ArrayList<>();
+        Collection<File> files = FileUtils.listFiles(new File(applicationService.getHomeDir(FileType.BO)),fileFilter,null);
+        for (File file : files) {
+            if ( !file.exists() || !file.canRead() ) continue;
+            BoDto boDto = new BoDto();
+            fillDto(boDto, file);
+            boDtos.add(boDto);
+        }
+        return boDtos;
     }
 
     public static void main(String[] args) {
