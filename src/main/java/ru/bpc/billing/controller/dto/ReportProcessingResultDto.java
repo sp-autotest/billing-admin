@@ -1,5 +1,6 @@
 package ru.bpc.billing.controller.dto;
 
+import org.codehaus.jackson.annotate.JsonIgnore;
 import org.codehaus.jackson.map.annotate.JsonSerialize;
 import ru.bpc.billing.domain.ProcessingFile;
 import ru.bpc.billing.domain.billing.BillingFile;
@@ -30,6 +31,9 @@ public class ReportProcessingResultDto {
     private List<ReportFileDto> reportFiles = new ArrayList<>();
     @JsonSerialize(include = JsonSerialize.Inclusion.NON_NULL)
     private ReportFileDto reportData;
+
+    @JsonIgnore
+    public ReportProcessingResult reportProcessingResult;
 
     public List<BillingFileDto> getBillingFiles() {
         return billingFiles;
@@ -72,6 +76,7 @@ public class ReportProcessingResultDto {
     }
 
     public void setReportProcessingResult(ReportProcessingResult result) {
+        this.reportProcessingResult = result;
         if ( !result.getBillingFiles().isEmpty() ) {
             List<BillingFileDto> billingFileDtos = new ArrayList<>();
             for (BillingFile billingFile : result.getBillingFiles()) {

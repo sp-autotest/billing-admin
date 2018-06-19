@@ -1,8 +1,6 @@
 package ru.bpc.billing.service.automate.bo;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.filefilter.IOFileFilter;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.context.ApplicationContext;
@@ -12,34 +10,22 @@ import org.springframework.util.FileCopyUtils;
 import org.springframework.web.multipart.MultipartFile;
 import ru.bpc.billing.controller.automate.ServerParametersDto;
 import ru.bpc.billing.controller.dto.*;
-import ru.bpc.billing.domain.BillingSystem;
 import ru.bpc.billing.domain.FileType;
 import ru.bpc.billing.domain.User;
-import ru.bpc.billing.domain.billing.BillingFile;
-import ru.bpc.billing.domain.billing.BillingFileUploadRequest;
-import ru.bpc.billing.domain.bo.BOFile;
 import ru.bpc.billing.domain.bo.BOFileUploadRequest;
 import ru.bpc.billing.repository.BOFileRepository;
-import ru.bpc.billing.repository.BillingFileRepository;
 import ru.bpc.billing.repository.UserRepository;
-import ru.bpc.billing.service.BillingSystemService;
 import ru.bpc.billing.service.SystemSettingsService;
-import ru.bpc.billing.service.automate.MailReport;
-import ru.bpc.billing.service.automate.MailReportUnit;
+import ru.bpc.billing.service.automate.bo.MailReportBo;
+import ru.bpc.billing.service.automate.bo.MailReportUnitBo;
 import ru.bpc.billing.service.automate.PostingAndBoServersParametersService;
-import ru.bpc.billing.service.automate.bsp.AutomateBspTask;
 import ru.bpc.billing.service.automate.controllerService.BOControllerService;
-import ru.bpc.billing.service.automate.controllerService.BillingControllerService;
 import ru.bpc.billing.service.automate.controllerService.FileControllerService;
 import ru.bpc.billing.service.bo.BOService;
-import ru.bpc.billing.service.io.SCPService;
 import ru.bpc.billing.service.io.SFTPClient;
 import ru.bpc.billing.service.mail.Mailer;
-import ru.bpc.billing.service.pgp.PGPFileProcessor;
 
-import javax.annotation.Resource;
 import java.io.File;
-import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -48,7 +34,6 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static ru.bpc.billing.service.automate.AutomateConstants.SERVER_PARAMS_BO;
-import static ru.bpc.billing.service.automate.AutomateConstants.SERVER_PARAMS_POSTING;
 
 @Slf4j
 public class DefaultAutomateBoTask implements AutomateBoTask {
@@ -82,8 +67,8 @@ public class DefaultAutomateBoTask implements AutomateBoTask {
     public void run() {
         isRunning = true;
         log.info("Start automate BO task");
-        MailReport mailReport = new MailReport();
-        MailReportUnit mailReportUnit = new MailReportUnit();
+        MailReportBo mailReport = new MailReportBo();
+        MailReportUnitBo mailReportUnit = new MailReportUnitBo();
 
         try {
             log.info("Processing BO task...");
@@ -131,7 +116,7 @@ public class DefaultAutomateBoTask implements AutomateBoTask {
     }
 
 
-    private void process(ServerParametersDto sp, MailReportUnit mailReportUnit) throws Exception {
+    private void process(ServerParametersDto sp, MailReportUnitBo mailReportUnit) throws Exception {
         log.info("Connecting to: " + sp.getAddress());
         SFTPClient sftpClient = new SFTPClient(sp.getLogin(), sp.getPassword(), sp.getAddress(), sp.getPort());
         log.info("Connected to: " + sp.getAddress());
@@ -171,18 +156,19 @@ public class DefaultAutomateBoTask implements AutomateBoTask {
 
         log.info("Uploaded files: " + uploaded.stream().map(BoDto::getFileName).collect(Collectors.toList()));
 
-        //mailReportUnit.addUploaded(uploaded);
+        mailReportUnit.addUploaded(uploaded);
+
+        ReportProcessingResultDto repResult = genReport(uploaded);
         //convert
 //        List<BillingConverterResultDto> billingConverterResultDto = convert(uploaded).getBillingConverterResultDtos();
 //
 //        log.info("Converted files: " + billingConverterResultDto.stream().map(BillingConverterResultDto::getPostings).collect(Collectors.toList()));
-//        mailReportUnit.addConverted(billingConverterResultDto);
+        mailReportUnit.addConverted(repResult);
 //
 //        uploadAndCheckPostings(billingConverterResultDto);
 //        log.info("Uploaded postings to scp: " + billingConverterResultDto.stream().map(BillingConverterResultDto::getPostings).collect(Collectors.toList()));
 //        mailReportUnit.addPostingUploaded(billingConverterResultDto);
 
-        ReportProcessingResultDto repResult = genReport(uploaded);
 
     }
 

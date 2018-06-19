@@ -19,8 +19,6 @@ import ru.bpc.billing.repository.BillingFileRepository;
 import ru.bpc.billing.repository.UserRepository;
 import ru.bpc.billing.service.BillingSystemService;
 import ru.bpc.billing.service.SystemSettingsService;
-import ru.bpc.billing.service.automate.MailReport;
-import ru.bpc.billing.service.automate.MailReportUnit;
 import ru.bpc.billing.service.automate.PostingAndBoServersParametersService;
 import ru.bpc.billing.service.automate.controllerService.BillingControllerService;
 import ru.bpc.billing.service.automate.controllerService.FileControllerService;
@@ -70,14 +68,14 @@ public class DefaultAutomateBspTask implements AutomateBspTask {
     public void run() {
         isRunning = true;
         log.info("Start automate BSP task");
-        MailReport mailReport = new MailReport();
+        MailReportBsp mailReport = new MailReportBsp();
 
         try {
             List<BillingSystem> bsList = billingSystemService.findAllAvailable();
             log.info("Found billing systems for processing: " + bsList);
             mailReport.addFoundSystems(bsList);
             for (BillingSystem bs : bsList) {
-                MailReportUnit mailReportUnit = new MailReportUnit();
+                MailReportUnitBsp mailReportUnit = new MailReportUnitBsp();
 
                 try {
 
@@ -105,7 +103,7 @@ public class DefaultAutomateBspTask implements AutomateBspTask {
     }
 
 
-    private void process(BillingSystem bs, MailReportUnit mailReportUnit) throws Exception {
+    private void process(BillingSystem bs, MailReportUnitBsp mailReportUnit) throws Exception {
         log.info("Connecting to: " + bs.getHostAddress());
         SFTPClient sftpClient = new SFTPClient(bs.getLogin(), bs.getPassword(), bs.getHostAddress(), bs.getSftpPort());
         log.info("Connected to: " + bs.getHostAddress());

@@ -1,4 +1,4 @@
-package ru.bpc.billing.service.automate;
+package ru.bpc.billing.service.automate.bsp;
 
 import ru.bpc.billing.controller.dto.BillingConverterResultDto;
 import ru.bpc.billing.controller.dto.BillingFileDto;
@@ -9,7 +9,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MailReportUnit {
+public class MailReportUnitBsp {
 
     private BillingSystem bs;
     private List<String> fileNames = new ArrayList<>();
