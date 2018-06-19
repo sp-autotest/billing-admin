@@ -17,6 +17,7 @@ public enum FileType {
     REVENUE_REPORT_EXCEL(true),
     REVENUE_REPORT_XML_ACCELYA(true),
     OPERATION_REGISTER(true),
+    TICKET_INFO_REPORT(true),
     REVENUE_REPORT_EXCEL_NSPC(true),
     OPERATION_REGISTER_NSPC(true);
 

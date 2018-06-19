@@ -121,7 +121,7 @@ public class SvExcelTicketInfoReportBuilder implements ReportBuilder {
 
     @Override
     public FileType getFileType() {
-        return FileType.OPERATION_REGISTER;
+        return FileType.TICKET_INFO_REPORT;
     }
 
     @Override
