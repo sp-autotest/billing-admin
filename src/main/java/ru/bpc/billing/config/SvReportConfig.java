@@ -71,6 +71,11 @@ public class SvReportConfig {
     public ReportBuilder xmlAccelyaRevenueReportBuilder() {
         return new SvXmlAccelyaRevenueReportBuilder();
     }
+    @Bean
+    public ReportBuilder excelTicketInfoReportBuilder() {
+        return new SvExcelTicketInfoReportBuilder();
+    }
+
 
     @Bean
     public ReportProcessor standardReportProcessor() {
@@ -80,6 +85,7 @@ public class SvReportConfig {
         reportBuilders.add(excelRevenueReportBuilder());
         reportBuilders.add(xmlAccelyaRevenueReportBuilder());
         reportBuilders.add(excelRevenueOperationRegisterReportBuilder());
+        reportBuilders.add(excelTicketInfoReportBuilder());
         reportProcessor.setReportBuilders(reportBuilders);
         return reportProcessor;
     }
