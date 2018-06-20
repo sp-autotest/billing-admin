@@ -2,12 +2,11 @@ package ru.bpc.billing.service.report.revenue.sv;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.xssf.usermodel.XSSFFont;
+import org.apache.poi.ss.util.CellRangeAddress;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
-import org.springframework.util.CollectionUtils;
 import ru.bpc.billing.domain.Carrier;
 import ru.bpc.billing.domain.FileType;
 import ru.bpc.billing.domain.ProcessingFile;
@@ -20,7 +19,6 @@ import ru.bpc.billing.service.ISystem;
 import ru.bpc.billing.service.report.LoadAndGroupTickets;
 import ru.bpc.billing.service.report.ReportBuilder;
 import ru.bpc.billing.service.report.ReportBuildException;
-import ru.bpc.billing.service.report.ReportType;
 import ru.bpc.billing.service.report.revenue.Formula;
 import ru.bpc.billing.util.BillingFileUtils;
 import ru.bpc.billing.util.poi.PoiSSUtil;
@@ -31,7 +29,6 @@ import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.Currency;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.poi.ss.usermodel.Font.BOLDWEIGHT_BOLD;
@@ -44,9 +41,10 @@ public class SvExcelTicketInfoReportBuilder implements ReportBuilder {
     private static Logger logger = LoggerFactory.getLogger(SvExcelRevenueOperationRegisterReportBuilder.class);
     private SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy_MM_dd_HHmm");
     protected CellStyle feeCellStyle;
-    protected CellStyle rubCellStyle;
+    protected CellStyle curCellStyle;
     protected CellStyle anyCellStyle;
-    protected CellStyle subHeaderCellStyle;
+    protected CellStyle capCellStyle;
+    protected CellStyle boldCellStyle;
 
     @Resource
     private ApplicationService applicationService;
@@ -54,33 +52,47 @@ public class SvExcelTicketInfoReportBuilder implements ReportBuilder {
     protected MessageSource messageSource;
 
     protected void buildMainTicketInfoSheet(Workbook workbook, AtomicBoolean stopped, LoadAndGroupTickets loadAndGroupTickets) throws InterruptedException {
+        Carrier carrier = BillingFileUtils.getCarrier(loadAndGroupTickets.getBillingFiles());
+        String carrierName = carrier == null ? "" : carrier.getName();
 
         List<ReportRecord> reportRecords = loadAndGroupTickets.getReportRecords();
         Sheet sheet = workbook.getSheetAt(0);
         int rowNum = START_ROW;
         feeCellStyle = workbook.createCellStyle();
-        feeCellStyle.setDataFormat(workbook.createDataFormat().getFormat("0.00%"));
-        rubCellStyle = workbook.createCellStyle();
-        rubCellStyle.setDataFormat(workbook.createDataFormat().getFormat(Formula.formatString(2)));
+        curCellStyle = workbook.createCellStyle();
         anyCellStyle = workbook.createCellStyle();
+        capCellStyle = workbook.createCellStyle();
+        boldCellStyle = workbook.createCellStyle();
+        feeCellStyle.setDataFormat(workbook.createDataFormat().getFormat("0.00%"));
+        curCellStyle.setDataFormat(workbook.createDataFormat().getFormat(Formula.formatString(2)));
+
         Font fontCell = workbook.createFont();
         fontCell.setFontName("Arial");
-        //fontCell.setFontHeightInPoints(new Short("8"));
         anyCellStyle.setFont(fontCell);
-        rubCellStyle.setFont(fontCell);
+        curCellStyle.setFont(fontCell);
         feeCellStyle.setFont(fontCell);
+        capCellStyle.setFont(fontCell);
         Font boldFontCell = workbook.createFont();
         boldFontCell.setBoldweight(BOLDWEIGHT_BOLD);
         boldFontCell.setFontName("Arial");
-        subHeaderCellStyle = workbook.createCellStyle();
-        subHeaderCellStyle.setFont(boldFontCell);
-        subHeaderCellStyle.setAlignment(CellStyle.ALIGN_CENTER);
+        boldCellStyle.setFont(boldFontCell);
+
+        boldCellStyle.setAlignment(CellStyle.ALIGN_CENTER);
         anyCellStyle.setAlignment(CellStyle.ALIGN_CENTER);
-        createHeaders(sheet);
+        capCellStyle.setAlignment(CellStyle.ALIGN_LEFT);
+
+        //Шапка отчета
+        PoiSSUtil.createCellAndSetValue(sheet.getRow(6), 2, carrierName, capCellStyle);//Название АК
+
+
+        /////////////эту часть нужно оформить в цикле, с перебором по валютам/////////////////////////////
+        createHeaders(sheet, rowNum);
+        rowNum = rowNum + 2;
 
         int i = 1;
         int successDepositRecords = 0;
         int successCreditRecords = 0;
+
         for (ReportRecord revenueRecord : reportRecords) {
             if (i % 100 == 0 && stopped.get()) {
                 throw new InterruptedException("Interrupted");
@@ -89,10 +101,14 @@ public class SvExcelTicketInfoReportBuilder implements ReportBuilder {
             if ( revenueRecord.isCredit() ) successCreditRecords++;
             else successDepositRecords ++;
             Row row = sheet.createRow(rowNum);
-            fillRevenueRecordToExcelRow(workbook, row, revenueRecord);
+            fillTicketInfoRecordToExcelRow(workbook, row, revenueRecord);
             rowNum++;
             i++;
         }
+        createFooters(sheet, rowNum);
+        rowNum++;
+        /////////////////конец цикла перебора по валютам///////////////////////////////////////////////////
+
     }
 
 
@@ -112,11 +128,11 @@ public class SvExcelTicketInfoReportBuilder implements ReportBuilder {
 
         Carrier carrier = BillingFileUtils.getCarrier(loadAndGroupTickets.getBillingFiles());
         String iataCode = carrier == null ? "" : carrier.getIataCode();
-        File operationRegisterFile = new File(applicationService.getHomeDir(getFileType()) + FILE_NAME + fileFormats +
+        File ticketInfoFile = new File(applicationService.getHomeDir(getFileType()) + FILE_NAME + fileFormats +
                 dateFormat.format(loadAndGroupTickets.getCreatedDate()) + (isConsolidate ? "_consolidate_" : "_") + iataCode + ".xlsx");
-        PoiSSUtil.saveWorkbook(workbook, operationRegisterFile);
+        PoiSSUtil.saveWorkbook(workbook, ticketInfoFile);
 
-        return operationRegisterFile;
+        return ticketInfoFile;
     }
 
     @Override
@@ -139,10 +155,10 @@ public class SvExcelTicketInfoReportBuilder implements ReportBuilder {
         DOCUMENT_NUMBER("Ticket No"),
         PAN("Primary Account Number"),
         MPS("Card Brand"),
-        CODE_CURRENCY_MPS("Currency"),
+        CURRENCY_MPS("Currency"),
         AMOUNT_IN_CURRENCY_MPS("Gross amount"),
-        CODE_CURRENCY_CLIENT("Currency"),
-        AMOUNT_IN_CURRENCY_CLIENT("Gross amount"),
+        CURRENCY_RUB("Currency"),
+        AMOUNT_IN_RUB("Gross amount"),
         AMOUNT_FEE_IN_RUB("Fee amount"),
         AMOUNT_NET_IN_RUB("Net amount"),
         RATE_COMMISSION("Fee");
@@ -168,20 +184,28 @@ public class SvExcelTicketInfoReportBuilder implements ReportBuilder {
     }
 
     protected class RowNumParams {
-        BigDecimal amountOperation;
-        BigDecimal feeRub;
         BigDecimal amountMps;
-        double rateCb;
-        double rateMps;
-        BigDecimal amountOperationInMinor;
-        String invoiceNumber;
+        BigDecimal amountRub;
+        BigDecimal feeRub;
     }
 
-    protected void createHeaders(Sheet sheet) {
-        Row rowHeader = sheet.createRow(19);
+    protected void createHeaders(Sheet sheet, int startHeaderRow) {
+        Row rowHeaderCombining = sheet.createRow(startHeaderRow);
+        sheet.addMergedRegion(CellRangeAddress.valueOf("$G$" + (startHeaderRow+1) + ":$H$" + (startHeaderRow+1)));
+        sheet.addMergedRegion(CellRangeAddress.valueOf("$I$" + (startHeaderRow+1) + ":$M$" + (startHeaderRow+1)));
+        PoiSSUtil.createCellAndSetValue(rowHeaderCombining, 6, "Submission currency ", boldCellStyle);
+        PoiSSUtil.createCellAndSetValue(rowHeaderCombining, 8, "Settlement currency", boldCellStyle);
+        Row rowHeader = sheet.createRow(startHeaderRow+1);
         for (RowName rowName : RowName.values()) {
-            PoiSSUtil.createCellAndSetValue(rowHeader, rowName.getColumnNumber(), rowName.getrowNameEng(), subHeaderCellStyle);//МПС
+            PoiSSUtil.createCellAndSetValue(rowHeader, rowName.getColumnNumber(), rowName.getrowNameEng(), boldCellStyle);
         }
+    }
+
+    protected void createFooters(Sheet sheet, int row) {
+        Row footerRow = sheet.createRow(row);
+        sheet.addMergedRegion(CellRangeAddress.valueOf("$B$" + (row+1) + ":$F$" + (row+1)));
+        PoiSSUtil.createCellAndSetValue(footerRow, 1, "Total for ", boldCellStyle);
+        PoiSSUtil.createCellAndSetValue(footerRow, 8, "RUR", boldCellStyle);
     }
 
     protected void createRecords(Workbook workbook, Row row, ReportRecord revenueRecord, RowNumParams rowNumParams) {
@@ -206,142 +230,88 @@ public class SvExcelTicketInfoReportBuilder implements ReportBuilder {
                 break;
             }
             case PAN: {//номер карты
-                String pan = null;
-                if ( null != revenueRecord.getPan()) {
-                    pan = revenueRecord.getPan();
-                    pan = pan.substring(0, 4) + "********" + pan.substring(12);
-                }
-                PoiSSUtil.createCellAndSetValue(row, rowName.getColumnNumber(), pan, anyCellStyle);
+                PoiSSUtil.createCellAndSetValue(row, rowName.getColumnNumber(),
+                        maskCardNumber(revenueRecord.getPan()), anyCellStyle);
                 break;
             }
             case MPS: {//МПС
-                String mps = null;
-                if ( null != revenue.getOperationType().getType()) {
-                    mps = revenue.getOperationType().getType();
-                    if (mps.contains("VI")) {
-                        mps = "Visa";
-                    }
-                    if (mps.contains("MC")) {
-                        mps = "MasterCard";
-                    }
-                }
-                PoiSSUtil.createCellAndSetValue(row, rowName.getColumnNumber(), mps, anyCellStyle);
+                PoiSSUtil.createCellAndSetValue(row, rowName.getColumnNumber(),
+                        getMpsFullName(revenue.getOperationType().getType()), anyCellStyle);
                 break;
             }
-            case CODE_CURRENCY_MPS: {//код валюты мпс
-                String alphabeticCode = null;
-                if ( null != revenue.getCURRENCY_MPS() ) {
-                    Currency currency = CurrencyService.findByNumericCode(revenue.getCURRENCY_MPS());
-                    if ( null != currency ) {
-                        alphabeticCode = currency.getCurrencyCode();
-                    }
-                    else logger.warn("Unable to find currency [client] by numericCode: {}",revenue.getCURRENCY_MPS());
-                }
-                PoiSSUtil.createCellAndSetValue(row, rowName.getColumnNumber(), alphabeticCode, anyCellStyle);
+            case CURRENCY_MPS: {//валюта мпс
+                PoiSSUtil.createCellAndSetValue(row, rowName.getColumnNumber(),
+                        getCurrencyName(revenue.getCURRENCY_MPS()), anyCellStyle);
                 break;
             }
             case AMOUNT_IN_CURRENCY_MPS: {//сумма в валюте мпс
-                double amount = 0;
-                if ( null != revenueRecord.getGrossMps()) {
-                    amount = revenueRecord.getGrossMps().doubleValue()/100;
-                    if ( null != revenue.getOPER_SIGN()) {
-                        if (revenue.getOPER_SIGN().equals("CR")){
-                            amount = amount*(-1);
-                        }
-                    }
-                }
-                PoiSSUtil.createCellAndSetValue(row, rowName.getColumnNumber(), amount/*.getAMOUNT_IN_CURRENCY_MPS()*/, rubCellStyle);
+                PoiSSUtil.createCellAndSetValue(row, rowName.getColumnNumber(),
+                        rowNumParams.amountMps.doubleValue(), curCellStyle);
                 break;
             }
-            case CODE_CURRENCY_CLIENT: {//код валюты клиента
-                String alphabeticCode = null;
-                if ( null != revenue.getCURRENCY() ) {
-                    Currency currency = CurrencyService.findByNumericCode(revenue.getCURRENCY());
-                    if ( null != currency ) {
-                        alphabeticCode = currency.getCurrencyCode();
-                    }
-                    else logger.warn("Unable to find currency by numericCode: {}",revenue.getCURRENCY());
-                }
-                PoiSSUtil.createCellAndSetValue(row, rowName.getColumnNumber(), alphabeticCode, anyCellStyle);
+            case CURRENCY_RUB: {//валюта расчетов с ТСП
+                PoiSSUtil.createCellAndSetValue(row, rowName.getColumnNumber(),
+                        getCurrencyName(revenue.getCURRENCY()), anyCellStyle);
                 break;
             }
-            case AMOUNT_IN_CURRENCY_CLIENT: { //Сумма в рублях
-                PoiSSUtil.createCellAndSetValue(row, rowName.getColumnNumber(), revenueRecord.getGrossBank().doubleValue()/*.getAMOUNT_IN_RUB()*/, rubCellStyle);
+            case AMOUNT_IN_RUB: { //Сумма в рублях
+                PoiSSUtil.createCellAndSetValue(row, rowName.getColumnNumber(),
+                        rowNumParams.amountRub.doubleValue(), curCellStyle);
                 break;
             }
             case AMOUNT_FEE_IN_RUB: { //Сумма комиссии в рублях
                 PoiSSUtil.createCellAndSetFormula(row, rowName.getColumnNumber(),
-                        Formula.feeAmountInRub(row.getRowNum(), RowName.AMOUNT_IN_CURRENCY_CLIENT.getColumnNumber(), rowNumParams.feeRub.doubleValue()), rubCellStyle);
+                        Formula.feeAmountInRubTicketInfo(row.getRowNum(), RowName.AMOUNT_IN_RUB.getColumnNumber(),
+                                rowNumParams.feeRub.doubleValue()), curCellStyle);
                 break;
             }
             case AMOUNT_NET_IN_RUB: { //Сумма без комиссии в рублях
                 PoiSSUtil.createCellAndSetFormula(row, rowName.getColumnNumber(),
-                        Formula.feeAmountInRub(row.getRowNum(), RowName.AMOUNT_IN_CURRENCY_CLIENT.getColumnNumber(), rowNumParams.feeRub.doubleValue()), rubCellStyle);
+                        Formula.netInRubTicketInfo(row.getRowNum()), curCellStyle);
                 break;
             }
             case RATE_COMMISSION: {//Ставка комиссии
                 PoiSSUtil.createCellAndSetFormula(row, rowName.getColumnNumber(),
-                        Formula.feeRateFormula(row.getRowNum(), RowName.AMOUNT_FEE_IN_RUB.getColumnNumber(), RowName.AMOUNT_IN_CURRENCY_CLIENT.getColumnNumber()),
-                        feeCellStyle);
+                        Formula.feeRateFormula(row.getRowNum(), RowName.AMOUNT_FEE_IN_RUB.getColumnNumber(),
+                                RowName.AMOUNT_IN_RUB.getColumnNumber()), feeCellStyle);
                 break;
             }
         }
     }
 
-    protected void fillRevenueRecordToExcelRow(Workbook workbook, Row row, ReportRecord revenueRecord) {
+    protected void fillTicketInfoRecordToExcelRow(Workbook workbook, Row row, ReportRecord revenueRecord) {
         RowNumParams rowNumParams = new RowNumParams();
         BORecord revenue = revenueRecord.getBoRecord();
         int minorMps = 0;
-        int minorOperation = 0;
+        int minorRub = 0;
         int minorOperationRub = 2;
-        if (null != revenue.getCURRENCY_CLIENT()) {
-            Currency currencyOperation = CurrencyService.findByNumericCode(revenue.getCURRENCY_CLIENT());
-            if (null != currencyOperation) minorOperation = currencyOperation.getDefaultFractionDigits();
-            else logger.warn("Unable to find currency by numericCode: {} and set minorOperation as default value = {}", revenue.getCURRENCY_CLIENT(), minorOperation);
-        } else logger.warn("Unable to find currency because currency_client is null");
         if (null != revenue.getCURRENCY_MPS()) {
             Currency currencyMps = CurrencyService.findByNumericCode(revenue.getCURRENCY_MPS());
             if (null != currencyMps) minorMps = currencyMps.getDefaultFractionDigits();
-            else logger.warn("Unable to find currency by numericCode: {} and set minotMps as default value = {}", revenue.getCURRENCY_MPS(), minorMps);
-        } else logger.warn("Unable to find currency because currency_mps us null");
+            else logger.warn("Unable to find currency by numericCode: {} and set minorMps as default value = {}", revenue.getCURRENCY_MPS(), minorMps);
+        } else logger.warn("Unable to find currency because currency_mps is null");
+        if (null != revenue.getCURRENCY()) {
+            Currency currencyRub = CurrencyService.findByNumericCode(revenue.getCURRENCY());
+            if (null != currencyRub) minorRub = currencyRub.getDefaultFractionDigits();
+            else logger.warn("Unable to find currency by numericCode: {} and set minorRub as default value = {}", revenue.getCURRENCY_MPS(), minorRub);
+        } else logger.warn("Unable to find currency because currency_rub is null");
 
-        BigDecimal amountOperation = BigDecimal.ZERO;
         BigDecimal feeRub = BigDecimal.ZERO;
-        BigDecimal amountInRub = BigDecimal.ZERO;
+        BigDecimal amountRub = BigDecimal.ZERO;
         BigDecimal amountMps = BigDecimal.ZERO;
-        BigDecimal amountOperationInMinor = BigDecimal.ZERO;
 
-        if (StringUtils.isNotBlank(revenue.getAMOUNT_IN_CURRENCY_CLIENT())) {
-            amountOperation = amountWithSign(new BigDecimal(revenue.getAMOUNT_IN_CURRENCY_CLIENT()), minorOperation, revenue.isCredit());
-            amountOperationInMinor = amountWithSign(new BigDecimal(revenue.getAMOUNT_IN_CURRENCY_CLIENT()), 0, revenue.isCredit());//берём как есть, не сдвигаем, только учитываем знак
-        }
+        if (StringUtils.isNotBlank(revenue.getAMOUNT_IN_CURRENCY_MPS()))
+            amountMps = amountWithSign(new BigDecimal(revenue.getAMOUNT_IN_CURRENCY_MPS()), minorMps, revenue.isCredit());
+        if (StringUtils.isNotBlank(revenue.getAMOUNT_IN_RUB()))
+            amountRub = amountWithSign(new BigDecimal(revenue.getAMOUNT_IN_RUB()), minorRub, revenue.isCredit());
         if (StringUtils.isNotBlank(revenue.getMSC()))
             feeRub = new BigDecimal(revenue.getMSC()).movePointLeft(minorOperationRub);
-        if (StringUtils.isNotBlank(revenue.getAMOUNT_IN_CURRENCY_MPS())) {
-            amountMps = amountWithSign(new BigDecimal(revenue.getAMOUNT_IN_CURRENCY_MPS()), minorMps, false);
-        }
-
-        double rateCb = 1.0;
-        if (null != revenue.getRATE_CB()) {
-            rateCb = Double.parseDouble(revenue.getRATE_CB());
-        } else logger.warn("Rate CB is null for record with rbsId: {} . Use rate CB = 1.0", revenue.getRBS_ORDER());
-        double rateMps = 1.0;
-        if (null != revenue.getRATE_MPS()) {
-            rateMps = Double.parseDouble(revenue.getRATE_MPS());
-        } else logger.warn("Rate MPS is null for record with rbsId: {} . Use rate MPS = 1.0", revenue.getRBS_ORDER());
 
         rowNumParams.amountMps = amountMps;
-        rowNumParams.amountOperation = amountOperation;
+        rowNumParams.amountRub = amountRub;
         rowNumParams.feeRub = feeRub;
-        rowNumParams.rateCb = rateCb;
-        rowNumParams.rateMps = rateMps;
-        rowNumParams.amountOperationInMinor = amountOperationInMinor;
-        rowNumParams.invoiceNumber = revenueRecord.getInvoiceNumber();
 
-        createRecords(workbook,row,revenueRecord,rowNumParams);
-//        for (RowName rowName : RowName.values()) {
-//            fillCell(workbook, row, revenueRecord, rowName, rowNumParams);
-//        }
+        createRecords(workbook, row, revenueRecord, rowNumParams);
     }
 
 
@@ -353,6 +323,37 @@ public class SvExcelTicketInfoReportBuilder implements ReportBuilder {
 
     protected BigDecimal sign(boolean isCredit, BigDecimal sign) {
         return isCredit ? sign.abs() : sign.negate();
+    }
+
+    protected String maskCardNumber(String pan) {
+        if (null != pan) {
+            return  pan.substring(0, 4) + "********" + pan.substring(12);
+        }
+        return null;
+    }
+
+    protected String getMpsFullName(String mps) {
+        if (null != mps) {
+            if (mps.contains("VI")) {
+                return "Visa";
+            }
+            if (mps.contains("MC")) {
+                return "MasterCard";
+            }
+        }
+        return null;
+    }
+
+    protected String getCurrencyName(String code) {
+        String alphabeticCode = null;
+        if ( null != code ) {
+            Currency currency = CurrencyService.findByNumericCode(code);
+            if ( null != currency ) {
+                alphabeticCode = currency.getCurrencyCode();
+            }
+            else logger.warn("Unable to find currency [client] by numericCode: {}",code);
+        }
+        return alphabeticCode;
     }
 
     @Override

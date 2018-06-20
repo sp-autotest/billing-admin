@@ -23,6 +23,7 @@ public abstract class Formula {
     private static final String REJECT_TOTAL_GROSS_IN_CURRENCY_MPS = "'Rejects, Сhargebacks'!L%d";
     private static final String FROM_REJECT_LIST = "'Rejects, Сhargebacks'!%s%d";
     private static final String SUM_FROM_START_TO_FINISH = "SUM(%s%d:%s%d)";
+    private static final String NET_IN_RUB_TO_TICKET_INFO = "J%d+K%d";
 
     public final static String feeInCurrencyOperation(int rowNum) {
         return String.format(FEE_IN_CURRENCY_OPERATION, rowNum, rowNum);
@@ -275,6 +276,16 @@ public abstract class Formula {
         String rateMpsColumn = "" + ALPHABET.charAt(iRateMpsColumn) + rowNum;
         String formula = (amountInCurrencyClientInMinor) + "*" + (rateCbColumn) + "*" + (rateMpsColumn) + "/100";
         return formula;
+    }
+    public final static String feeAmountInRubTicketInfo(int rowNum, int iFeAmountInRubColumn, double amountInRub) {
+        rowNum++;
+        String feeAmountInRubColumn = "" + ALPHABET.charAt(iFeAmountInRubColumn) + rowNum;
+        return "IF(" + feeAmountInRubColumn + ">0," + amountInRub + "*(-1), 0)";
+    }
+
+    public final static String netInRubTicketInfo(int rowNum) {
+        rowNum++;
+        return String.format(NET_IN_RUB_TO_TICKET_INFO, rowNum, rowNum);
     }
 
     public static String formatString(int minorUnit) {
