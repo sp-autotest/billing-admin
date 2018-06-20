@@ -10,6 +10,7 @@ import org.springframework.scheduling.support.CronSequenceGenerator;
 import org.springframework.scheduling.support.CronTrigger;
 import org.springframework.stereotype.Service;
 import ru.bpc.billing.repository.UserRepository;
+import ru.bpc.billing.service.ApplicationService;
 import ru.bpc.billing.service.SystemSettingsService;
 import ru.bpc.billing.service.automate.GlobalAutomateService;
 import ru.bpc.billing.service.automate.PostingAndBoServersParametersService;
@@ -41,11 +42,13 @@ public class BoTaskStarterService {
     private final Mailer mailer;
     private final GlobalAutomateService globalAutomateService;
     private final BOService boService;
+    private final ApplicationService applicationService;
 
     @Autowired
     public BoTaskStarterService(SchedulingPlanService schedulingService, ApplicationContext context, UserRepository userRepository,
                                 PostingAndBoServersParametersService parametersService,
                                 BOService boService,
+                                ApplicationService applicationService,
                                 SystemSettingsService systemSettingsService, Mailer mailer, GlobalAutomateService globalAutomateService) {
         this.schedulingService = schedulingService;
         this.context = context;
@@ -55,6 +58,7 @@ public class BoTaskStarterService {
         this.mailer = mailer;
         this.globalAutomateService = globalAutomateService;
         this.boService = boService;
+        this.applicationService = applicationService;
     }
 
     @PostConstruct
@@ -77,7 +81,8 @@ public class BoTaskStarterService {
 
         String cronExpression = schedulingService.getBoCronExpression();
         if (cronExpression != null) {
-            automateTask = new DefaultAutomateBoTask(context, userRepository, parametersService, boService, systemSettingsService, mailer);
+            automateTask = new DefaultAutomateBoTask(context, userRepository, parametersService, boService, applicationService,
+                    systemSettingsService, mailer);
             scheduledFuture = taskScheduler.schedule(automateTask, new CronTrigger(cronExpression));
             log.warn("Rescheduled");
         }

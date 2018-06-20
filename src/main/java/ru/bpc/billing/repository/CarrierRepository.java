@@ -9,5 +9,5 @@ import ru.bpc.billing.domain.Carrier;
 @Repository
 public interface CarrierRepository extends CrudRepository<Carrier, Long>, JpaSpecificationExecutor<Carrier> {
 
-    public Carrier findByIataCode(String iataCode);
+    Carrier findByIataCode(String iataCode);
 }

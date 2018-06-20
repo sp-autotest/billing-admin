@@ -13,8 +13,10 @@ import ru.bpc.billing.controller.dto.*;
 import ru.bpc.billing.domain.FileType;
 import ru.bpc.billing.domain.User;
 import ru.bpc.billing.domain.bo.BOFileUploadRequest;
+import ru.bpc.billing.domain.report.ReportFile;
 import ru.bpc.billing.repository.BOFileRepository;
 import ru.bpc.billing.repository.UserRepository;
+import ru.bpc.billing.service.ApplicationService;
 import ru.bpc.billing.service.SystemSettingsService;
 import ru.bpc.billing.service.automate.bo.MailReportBo;
 import ru.bpc.billing.service.automate.bo.MailReportUnitBo;
@@ -25,6 +27,7 @@ import ru.bpc.billing.service.bo.BOService;
 import ru.bpc.billing.service.io.SFTPClient;
 import ru.bpc.billing.service.mail.Mailer;
 
+import javax.annotation.Resource;
 import java.io.File;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -47,6 +50,7 @@ public class DefaultAutomateBoTask implements AutomateBoTask {
     private final PostingAndBoServersParametersService parametersService;
     private final Mailer mailer;
     private final BOService boService;
+    private final ApplicationService applicationService;
 
 
     private volatile boolean isRunning = false;
@@ -55,6 +59,7 @@ public class DefaultAutomateBoTask implements AutomateBoTask {
     public DefaultAutomateBoTask(ApplicationContext context, UserRepository userRepository,
                                  PostingAndBoServersParametersService parametersService,
                                  BOService boService,
+                                 ApplicationService applicationService,
                                  SystemSettingsService systemSettingsService, Mailer mailer) {
         this.context = context;
         this.userRepository = userRepository;
@@ -62,6 +67,7 @@ public class DefaultAutomateBoTask implements AutomateBoTask {
         this.parametersService = parametersService;
         this.mailer = mailer;
         this.boService = boService;
+        this.applicationService = applicationService;
     }
 
     public void run() {
@@ -78,8 +84,10 @@ public class DefaultAutomateBoTask implements AutomateBoTask {
         } catch(Exception e) {
             log.error("Error processing bo files!!!", e);
         } finally {
-            mailer.sendMail(context.getEnvironment().getRequiredProperty("main.mail.sender"), systemSettingsService.getString("mail.esupport"), mailReport.getSubject(), mailReport.getBody(), null, false, "text/plain", "UTF-8");
-//            log.warn(mailReport.getBody());
+            mailer.sendMail(context.getEnvironment().getRequiredProperty("main.mail.sender"),
+                    systemSettingsService.getString("mail.esupport"), mailReport.getSubject(),
+                    mailReport.getBody(), getReportFiles(mailReportUnit.getReportFiles()), false, "text/plain", "UTF-8");
+            sendToBS(mailReportUnit, mailReport); /* послать отчет биллинговым сисетмам */
             isRunning = false;
         }
 
@@ -110,9 +118,21 @@ public class DefaultAutomateBoTask implements AutomateBoTask {
 //        }
     }
 
+    private void sendToBS(MailReportUnitBo mailReportUnit, MailReportBo mailReport) {
+
+    }
+
     @Override
     public boolean isRunning() {
         return isRunning;
+    }
+
+    private Set<File> getReportFiles(List<ReportFile> dtos) {
+        Set<File> result = new HashSet<>();
+        for(ReportFile rf : dtos) {
+            result.add(new File(applicationService.getHomeDir(FileType.BILLING) + rf.getName()));
+        }
+    return result;
     }
 
 
@@ -163,13 +183,26 @@ public class DefaultAutomateBoTask implements AutomateBoTask {
 //        List<BillingConverterResultDto> billingConverterResultDto = convert(uploaded).getBillingConverterResultDtos();
 //
 //        log.info("Converted files: " + billingConverterResultDto.stream().map(BillingConverterResultDto::getPostings).collect(Collectors.toList()));
+
         mailReportUnit.addConverted(repResult);
+        mailReportUnit.addReportFiles(repResult.reportProcessingResult.getReportFiles());
+
+        mailReportUnit.addIataList(getBSList(repResult.getBillingFiles()));
 //
 //        uploadAndCheckPostings(billingConverterResultDto);
 //        log.info("Uploaded postings to scp: " + billingConverterResultDto.stream().map(BillingConverterResultDto::getPostings).collect(Collectors.toList()));
 //        mailReportUnit.addPostingUploaded(billingConverterResultDto);
 
 
+    }
+
+    private List<String> getBSList(List<BillingFileDto> billingFiles) {
+        List<String> result = new ArrayList<>();
+        for(BillingFileDto bf : billingFiles) {
+            result.add(bf.getIataCode());
+        }
+
+        return result;
     }
 
     private List<String> checkAndFilter(List<String> fileNames) {

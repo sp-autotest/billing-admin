@@ -2,6 +2,8 @@ package ru.bpc.billing.service.automate.bo;
 
 import ru.bpc.billing.controller.dto.*;
 import ru.bpc.billing.domain.BillingSystem;
+import ru.bpc.billing.domain.FileType;
+import ru.bpc.billing.domain.report.ReportFile;
 import ru.bpc.billing.service.bo.BOProcessingResult;
 import ru.bpc.billing.service.report.ReportProcessingResult;
 
@@ -15,11 +17,27 @@ public class MailReportUnitBo {
     private List<String> fileNames = new ArrayList<>();
     private List<String> filteredFileNames;
     private List<File> downloadedFiles;
-    //private List<File> decryptedFiles;
+
+    private List<ReportFile> attachmentFiles = new ArrayList<>();
     private String uploaded;
     private String reportResultDto;
-    List<ReportFileDto> reportFiles;
-    //private String postingsUploaded;
+
+    private List<ReportFile> reportFiles;
+    private List<String> iataList;
+
+    public List<ReportFile> getReportFiles() {
+        return reportFiles;
+    }
+
+    public List<String> getIataList() {
+        return iataList;
+    }
+
+
+    public List<ReportFile> getAttachmentFiles() {
+        return attachmentFiles;
+    }
+
 
     public void addConnected(BillingSystem bs) {
         this.bs = bs;
@@ -81,19 +99,6 @@ public class MailReportUnitBo {
         this.reportResultDto = sb.toString();
     }
 
-    public void addReportFiles(List<ReportFileDto> dtos) {
-        this.reportFiles = reportFiles;
-        StringBuilder sb = new StringBuilder();
-        for(ReportFileDto dto : dtos) {
-            sb.append(String.format("\n\tКредит успешно: %s", dto.successCreditRecordsCount));
-            sb.append(String.format("\n\tКредит отклонено: %s", dto.rejectCreditRecordsCount));
-
-            sb.append(String.format("\n\tДепозит успешно: %s", dto.successDepositRecordsCount));
-            sb.append(String.format("\n\tДепозит отклонено: %s", dto.successCreditRecordsCount));
-
-        }
-    }
-
     private String printList(List<?> list) {
         StringBuilder result = new StringBuilder();
         for (Object s : list) {
@@ -129,4 +134,13 @@ public class MailReportUnitBo {
         //sb.append("\nПостинги загружены на scp: ").append(postingsUploaded);
         return sb.toString();
     }
+
+    public void addReportFiles(List<ReportFile> reportFiles) {
+        this.attachmentFiles = reportFiles;
+    }
+
+    public void addIataList(List<String> bsList) {
+        this.iataList = bsList;
+    }
+
 }
