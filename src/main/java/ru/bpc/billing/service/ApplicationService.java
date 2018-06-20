@@ -83,6 +83,7 @@ public class ApplicationService {
             case REVENUE_REPORT_EXCEL: return getReportDir();
             case REVENUE_REPORT_XML_ACCELYA: return getReportDir();
             case OPERATION_REGISTER: return getReportDir();
+            case TICKET_INFO_REPORT: return getReportDir();
             case REVENUE_REPORT_EXCEL_NSPC: return getReportDir();
             case OPERATION_REGISTER_NSPC: return getReportDir();
         }
