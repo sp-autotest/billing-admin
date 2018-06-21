@@ -31,6 +31,7 @@ import java.util.Currency;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.apache.poi.ss.usermodel.CellStyle.*;
 import static org.apache.poi.ss.usermodel.Font.BOLDWEIGHT_BOLD;
 
 public class SvExcelTicketInfoReportBuilder implements ReportBuilder {
@@ -42,9 +43,12 @@ public class SvExcelTicketInfoReportBuilder implements ReportBuilder {
     private SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy_MM_dd_HHmm");
     protected CellStyle feeCellStyle;
     protected CellStyle curCellStyle;
+    protected CellStyle bigCellStyle;
     protected CellStyle anyCellStyle;
     protected CellStyle capCellStyle;
     protected CellStyle boldCellStyle;
+    protected CellStyle footerCellStyle;
+
 
     @Resource
     private ApplicationService applicationService;
@@ -52,65 +56,47 @@ public class SvExcelTicketInfoReportBuilder implements ReportBuilder {
     protected MessageSource messageSource;
 
     protected void buildMainTicketInfoSheet(Workbook workbook, AtomicBoolean stopped, LoadAndGroupTickets loadAndGroupTickets) throws InterruptedException {
-        Carrier carrier = BillingFileUtils.getCarrier(loadAndGroupTickets.getBillingFiles());
-        String carrierName = carrier == null ? "" : carrier.getName();
-
         List<ReportRecord> reportRecords = loadAndGroupTickets.getReportRecords();
         Sheet sheet = workbook.getSheetAt(0);
         int rowNum = START_ROW;
-        feeCellStyle = workbook.createCellStyle();
-        curCellStyle = workbook.createCellStyle();
-        anyCellStyle = workbook.createCellStyle();
-        capCellStyle = workbook.createCellStyle();
-        boldCellStyle = workbook.createCellStyle();
+
+        feeCellStyle = getCellStyle(workbook, "Arial", "11", ALIGN_CENTER, false, true);
+        curCellStyle = getCellStyle(workbook, "Arial", "11", ALIGN_RIGHT, false, true);
+        anyCellStyle = getCellStyle(workbook, "Arial", "11", ALIGN_CENTER, false, true);
+        capCellStyle = getCellStyle(workbook, "Arial", "11", ALIGN_LEFT, false, false);
+        bigCellStyle = getCellStyle(workbook, "Arial", "16", ALIGN_CENTER, true, false);
+        boldCellStyle = getCellStyle(workbook, "Arial", "11", ALIGN_CENTER, true, true);
+        footerCellStyle = getCellStyle(workbook, "Arial", "11", ALIGN_RIGHT, true, true);
         feeCellStyle.setDataFormat(workbook.createDataFormat().getFormat("0.00%"));
         curCellStyle.setDataFormat(workbook.createDataFormat().getFormat(Formula.formatString(2)));
 
-        Font fontCell = workbook.createFont();
-        fontCell.setFontName("Arial");
-        anyCellStyle.setFont(fontCell);
-        curCellStyle.setFont(fontCell);
-        feeCellStyle.setFont(fontCell);
-        capCellStyle.setFont(fontCell);
-        Font boldFontCell = workbook.createFont();
-        boldFontCell.setBoldweight(BOLDWEIGHT_BOLD);
-        boldFontCell.setFontName("Arial");
-        boldCellStyle.setFont(boldFontCell);
-
-        boldCellStyle.setAlignment(CellStyle.ALIGN_CENTER);
-        anyCellStyle.setAlignment(CellStyle.ALIGN_CENTER);
-        capCellStyle.setAlignment(CellStyle.ALIGN_LEFT);
-
-        //Шапка отчета
-        PoiSSUtil.createCellAndSetValue(sheet.getRow(6), 2, carrierName, capCellStyle);//Название АК
+        //Шапка отчета///////////////////////////////////////////////////////////////////////////////////
+        Carrier carrier = BillingFileUtils.getCarrier(loadAndGroupTickets.getBillingFiles());
+        String carrierName = carrier == null ? "" : carrier.getName();
+        PoiSSUtil.createCellAndSetValue(sheet.getRow(6), 2, carrierName, capCellStyle);  //Название АК
 
 
         /////////////эту часть нужно оформить в цикле, с перебором по валютам/////////////////////////////
-        createHeaders(sheet, rowNum);
-        rowNum = rowNum + 2;
+        createHeaders(sheet, rowNum, "810"); //временно указан код рубля, заменить при создании цикла
+        rowNum = rowNum + 4;
 
         int i = 1;
-        int successDepositRecords = 0;
-        int successCreditRecords = 0;
-
         for (ReportRecord revenueRecord : reportRecords) {
             if (i % 100 == 0 && stopped.get()) {
                 throw new InterruptedException("Interrupted");
             }
             if (null == revenueRecord.getBoRecord() || !revenueRecord.getBoRecord().isSuccess()) continue;
-            if ( revenueRecord.isCredit() ) successCreditRecords++;
-            else successDepositRecords ++;
             Row row = sheet.createRow(rowNum);
             fillTicketInfoRecordToExcelRow(workbook, row, revenueRecord);
             rowNum++;
             i++;
         }
-        createFooters(sheet, rowNum);
+
+        createFooters(sheet, rowNum, "810");//временно указан код рубля, заменить при создании цикла
         rowNum++;
         /////////////////конец цикла перебора по валютам///////////////////////////////////////////////////
 
     }
-
 
     @Override
     public File build(LoadAndGroupTickets loadAndGroupTickets, AtomicBoolean stopped) throws ReportBuildException{
@@ -189,22 +175,33 @@ public class SvExcelTicketInfoReportBuilder implements ReportBuilder {
         BigDecimal feeRub;
     }
 
-    protected void createHeaders(Sheet sheet, int startHeaderRow) {
-        Row rowHeaderCombining = sheet.createRow(startHeaderRow);
-        sheet.addMergedRegion(CellRangeAddress.valueOf("$G$" + (startHeaderRow+1) + ":$H$" + (startHeaderRow+1)));
-        sheet.addMergedRegion(CellRangeAddress.valueOf("$I$" + (startHeaderRow+1) + ":$M$" + (startHeaderRow+1)));
-        PoiSSUtil.createCellAndSetValue(rowHeaderCombining, 6, "Submission currency ", boldCellStyle);
-        PoiSSUtil.createCellAndSetValue(rowHeaderCombining, 8, "Settlement currency", boldCellStyle);
-        Row rowHeader = sheet.createRow(startHeaderRow+1);
+    protected void createHeaders(Sheet sheet, int startHeaderRow, String code) {
+        //создать верхние строки заголовка
+        Row rowHeaderCombining1 = sheet.createRow(startHeaderRow);
+        Row rowHeaderEmpty = sheet.createRow(startHeaderRow+1);
+        Row rowHeaderCombining2 = sheet.createRow(startHeaderRow+2);
+        rowHeaderEmpty.setHeight((short) 200);
+        //обьединить ячейки в верхних строках заголовка
+        sheet.addMergedRegion(CellRangeAddress.valueOf("$B$" + (startHeaderRow+1) + ":$M$" + (startHeaderRow+1)));
+        sheet.addMergedRegion(CellRangeAddress.valueOf("$G$" + (startHeaderRow+3) + ":$H$" + (startHeaderRow+3)));
+        sheet.addMergedRegion(CellRangeAddress.valueOf("$I$" + (startHeaderRow+3) + ":$M$" + (startHeaderRow+3)));
+        //внести данные в верхние ячейки заголовка
+        bigCellStyle.setFillPattern(SOLID_FOREGROUND);
+        bigCellStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.index);
+        PoiSSUtil.createCellAndSetValue(rowHeaderCombining1, 1, "Successful transactions | " + getCurrencyName(code), bigCellStyle);
+        PoiSSUtil.createCellAndSetValue(rowHeaderCombining2, 6, "Submission currency ", boldCellStyle);
+        PoiSSUtil.createCellAndSetValue(rowHeaderCombining2, 8, "Settlement currency", boldCellStyle);
+        //создать нижнюю полную строку заголовка
+        Row rowHeader= sheet.createRow(startHeaderRow+3);
         for (RowName rowName : RowName.values()) {
             PoiSSUtil.createCellAndSetValue(rowHeader, rowName.getColumnNumber(), rowName.getrowNameEng(), boldCellStyle);
         }
     }
 
-    protected void createFooters(Sheet sheet, int row) {
+    protected void createFooters(Sheet sheet, int row, String code) {
         Row footerRow = sheet.createRow(row);
         sheet.addMergedRegion(CellRangeAddress.valueOf("$B$" + (row+1) + ":$F$" + (row+1)));
-        PoiSSUtil.createCellAndSetValue(footerRow, 1, "Total for ", boldCellStyle);
+        PoiSSUtil.createCellAndSetValue(footerRow, 1, "Total for "+ getCurrencyName(code) + " (" + code + "):", footerCellStyle);
         PoiSSUtil.createCellAndSetValue(footerRow, 8, "RUR", boldCellStyle);
     }
 
@@ -354,6 +351,30 @@ public class SvExcelTicketInfoReportBuilder implements ReportBuilder {
             else logger.warn("Unable to find currency [client] by numericCode: {}",code);
         }
         return alphabeticCode;
+    }
+
+    protected CellStyle getCellStyle(Workbook wb, String fontName, String fontHeight, short alignment, boolean bold, boolean border) {
+        CellStyle cs = wb.createCellStyle();
+        Font font = wb.createFont();
+        font.setFontName(fontName);
+        font.setFontHeightInPoints(new Short(fontHeight));
+        if (bold) font.setBoldweight(BOLDWEIGHT_BOLD);
+        cs.setFont(font);
+        cs.setAlignment(alignment);
+        if (border) {
+            if (bold) {
+                cs.setBorderBottom(BORDER_MEDIUM);
+                cs.setBorderTop(BORDER_MEDIUM);
+                cs.setBorderLeft(BORDER_MEDIUM);
+                cs.setBorderRight(BORDER_MEDIUM);
+            } else {
+                cs.setBorderBottom(BORDER_THIN);
+                cs.setBorderTop(BORDER_THIN);
+                cs.setBorderLeft(BORDER_THIN);
+                cs.setBorderRight(BORDER_THIN);
+            }
+        }
+        return cs;
     }
 
     @Override
