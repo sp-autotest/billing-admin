@@ -81,6 +81,7 @@ public class ReportProcessingResultDto {
             List<BillingFileDto> billingFileDtos = new ArrayList<>();
             for (BillingFile billingFile : result.getBillingFiles()) {
                 BillingFileDto billingDto = new BillingFileDto(billingFile);
+                billingDto.setIataCode(billingFile.getCarrier().getIataCode());
                 billingFileDtos.add(billingDto);
             }
             setBillingFiles(billingFileDtos);

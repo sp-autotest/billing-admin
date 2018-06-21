@@ -10,11 +10,15 @@ import org.springframework.util.FileCopyUtils;
 import org.springframework.web.multipart.MultipartFile;
 import ru.bpc.billing.controller.automate.ServerParametersDto;
 import ru.bpc.billing.controller.dto.*;
+import ru.bpc.billing.domain.BillingSystem;
+import ru.bpc.billing.domain.Carrier;
 import ru.bpc.billing.domain.FileType;
 import ru.bpc.billing.domain.User;
 import ru.bpc.billing.domain.bo.BOFileUploadRequest;
 import ru.bpc.billing.domain.report.ReportFile;
 import ru.bpc.billing.repository.BOFileRepository;
+import ru.bpc.billing.repository.BillingSystemRepository;
+import ru.bpc.billing.repository.CarrierRepository;
 import ru.bpc.billing.repository.UserRepository;
 import ru.bpc.billing.service.ApplicationService;
 import ru.bpc.billing.service.SystemSettingsService;
@@ -51,6 +55,8 @@ public class DefaultAutomateBoTask implements AutomateBoTask {
     private final Mailer mailer;
     private final BOService boService;
     private final ApplicationService applicationService;
+    private final CarrierRepository carrierRepository;
+    private final BillingSystemRepository billingSystemRepository;
 
 
     private volatile boolean isRunning = false;
@@ -60,6 +66,8 @@ public class DefaultAutomateBoTask implements AutomateBoTask {
                                  PostingAndBoServersParametersService parametersService,
                                  BOService boService,
                                  ApplicationService applicationService,
+                                 CarrierRepository carrierRepository,
+                                 BillingSystemRepository billingSystemRepository,
                                  SystemSettingsService systemSettingsService, Mailer mailer) {
         this.context = context;
         this.userRepository = userRepository;
@@ -68,6 +76,8 @@ public class DefaultAutomateBoTask implements AutomateBoTask {
         this.mailer = mailer;
         this.boService = boService;
         this.applicationService = applicationService;
+        this.carrierRepository = carrierRepository;
+        this.billingSystemRepository = billingSystemRepository;
     }
 
     public void run() {
@@ -86,7 +96,7 @@ public class DefaultAutomateBoTask implements AutomateBoTask {
         } finally {
             mailer.sendMail(context.getEnvironment().getRequiredProperty("main.mail.sender"),
                     systemSettingsService.getString("mail.esupport"), mailReport.getSubject(),
-                    mailReport.getBody(), getReportFiles(mailReportUnit.getReportFiles()), false, "text/plain", "UTF-8");
+                    mailReport.getBody(), getReportFiles(mailReportUnit.getAttachmentFiles()), false, "text/plain", "UTF-8");
             sendToBS(mailReportUnit, mailReport); /* послать отчет биллинговым сисетмам */
             isRunning = false;
         }
@@ -119,7 +129,23 @@ public class DefaultAutomateBoTask implements AutomateBoTask {
     }
 
     private void sendToBS(MailReportUnitBo mailReportUnit, MailReportBo mailReport) {
+        List<String> iataList = mailReportUnit.getIataList();
+        if(iataList != null)
+        for(String iata : iataList) {
+            Carrier carrier = carrierRepository.findByIataCode(iata);
+            if(carrier != null) {
+                List<BillingSystem>  bsList = billingSystemRepository.findAllByCarrier(carrier);
+                for(BillingSystem bs : bsList) {
+                    Set<String> emails = bs.getEmails();
+                    for(String email : emails) {
+                        mailer.sendMail(context.getEnvironment().getRequiredProperty("main.mail.sender"),
+                                email, mailReport.getSubject(), mailReport.getBody(),
+                                getReportFiles(mailReportUnit.getAttachmentFiles()), false, "text/plain", "UTF-8");
+                    }
+                }
+            }
 
+        }
     }
 
     @Override
@@ -129,8 +155,9 @@ public class DefaultAutomateBoTask implements AutomateBoTask {
 
     private Set<File> getReportFiles(List<ReportFile> dtos) {
         Set<File> result = new HashSet<>();
+        if(dtos !=  null)
         for(ReportFile rf : dtos) {
-            result.add(new File(applicationService.getHomeDir(FileType.BILLING) + rf.getName()));
+            result.add(new File(applicationService.getHomeDir(FileType.REVENUE_REPORT_EXCEL) + rf.getName()));
         }
     return result;
     }

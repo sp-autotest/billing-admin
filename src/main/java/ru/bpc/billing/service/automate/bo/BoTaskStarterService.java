@@ -9,6 +9,8 @@ import org.springframework.scheduling.concurrent.ConcurrentTaskScheduler;
 import org.springframework.scheduling.support.CronSequenceGenerator;
 import org.springframework.scheduling.support.CronTrigger;
 import org.springframework.stereotype.Service;
+import ru.bpc.billing.repository.BillingSystemRepository;
+import ru.bpc.billing.repository.CarrierRepository;
 import ru.bpc.billing.repository.UserRepository;
 import ru.bpc.billing.service.ApplicationService;
 import ru.bpc.billing.service.SystemSettingsService;
@@ -43,12 +45,16 @@ public class BoTaskStarterService {
     private final GlobalAutomateService globalAutomateService;
     private final BOService boService;
     private final ApplicationService applicationService;
+    private final CarrierRepository carrierRepository;
+    private final BillingSystemRepository billingSystemRepository;
 
     @Autowired
     public BoTaskStarterService(SchedulingPlanService schedulingService, ApplicationContext context, UserRepository userRepository,
                                 PostingAndBoServersParametersService parametersService,
                                 BOService boService,
                                 ApplicationService applicationService,
+                                CarrierRepository carrierRepository,
+                                BillingSystemRepository billingSystemRepository,
                                 SystemSettingsService systemSettingsService, Mailer mailer, GlobalAutomateService globalAutomateService) {
         this.schedulingService = schedulingService;
         this.context = context;
@@ -59,6 +65,8 @@ public class BoTaskStarterService {
         this.globalAutomateService = globalAutomateService;
         this.boService = boService;
         this.applicationService = applicationService;
+        this.carrierRepository = carrierRepository;
+        this.billingSystemRepository = billingSystemRepository;
     }
 
     @PostConstruct
@@ -82,6 +90,7 @@ public class BoTaskStarterService {
         String cronExpression = schedulingService.getBoCronExpression();
         if (cronExpression != null) {
             automateTask = new DefaultAutomateBoTask(context, userRepository, parametersService, boService, applicationService,
+                    carrierRepository, billingSystemRepository,
                     systemSettingsService, mailer);
             scheduledFuture = taskScheduler.schedule(automateTask, new CronTrigger(cronExpression));
             log.warn("Rescheduled");

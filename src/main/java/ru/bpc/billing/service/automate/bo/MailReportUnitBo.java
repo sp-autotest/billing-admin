@@ -13,7 +13,7 @@ import java.util.List;
 
 public class MailReportUnitBo {
 
-    private BillingSystem bs;
+    //private BillingSystem bs;
     private List<String> fileNames = new ArrayList<>();
     private List<String> filteredFileNames;
     private List<File> downloadedFiles;
@@ -36,11 +36,6 @@ public class MailReportUnitBo {
 
     public List<ReportFile> getAttachmentFiles() {
         return attachmentFiles;
-    }
-
-
-    public void addConnected(BillingSystem bs) {
-        this.bs = bs;
     }
 
     public void addFileNames(List<String> fileNames) {
@@ -109,11 +104,6 @@ public class MailReportUnitBo {
 
     public String getReport() {
         StringBuilder sb = new StringBuilder();
-        if (bs == null) {
-            sb.append("Не удалось подключиться к sftp");
-            return sb.toString();
-        }
-        sb.append("\nПодключились к серверу sftp: ").append(bs.toString());
         if (fileNames.isEmpty())
             return sb.toString();
 
