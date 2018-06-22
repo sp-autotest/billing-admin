@@ -3,6 +3,7 @@ package ru.bpc.billing.service.report.revenue.sv;
 import org.apache.commons.lang.StringUtils;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.ss.util.RegionUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.MessageSource;
@@ -27,6 +28,7 @@ import javax.annotation.Resource;
 import java.io.File;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Currency;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -38,7 +40,7 @@ public class SvExcelTicketInfoReportBuilder implements ReportBuilder {
 
     private static final String TEMPLATE_PATH = "ticketInfoReportTemplate.xlsx";
     private static final String FILE_NAME = "ticket_report_for_sales_proceeds_for_";
-    private static final int START_ROW = 20;
+    private static final int START_ROW = 19;
     private static Logger logger = LoggerFactory.getLogger(SvExcelRevenueOperationRegisterReportBuilder.class);
     private SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy_MM_dd_HHmm");
     protected CellStyle feeCellStyle;
@@ -48,7 +50,7 @@ public class SvExcelTicketInfoReportBuilder implements ReportBuilder {
     protected CellStyle capCellStyle;
     protected CellStyle boldCellStyle;
     protected CellStyle footerCellStyle;
-
+    protected CellStyle boldCurCellStyle;
 
     @Resource
     private ApplicationService applicationService;
@@ -59,27 +61,13 @@ public class SvExcelTicketInfoReportBuilder implements ReportBuilder {
         List<ReportRecord> reportRecords = loadAndGroupTickets.getReportRecords();
         Sheet sheet = workbook.getSheetAt(0);
         int rowNum = START_ROW;
-
-        feeCellStyle = getCellStyle(workbook, "Arial", "11", ALIGN_CENTER, false, true);
-        curCellStyle = getCellStyle(workbook, "Arial", "11", ALIGN_RIGHT, false, true);
-        anyCellStyle = getCellStyle(workbook, "Arial", "11", ALIGN_CENTER, false, true);
-        capCellStyle = getCellStyle(workbook, "Arial", "11", ALIGN_LEFT, false, false);
-        bigCellStyle = getCellStyle(workbook, "Arial", "16", ALIGN_CENTER, true, false);
-        boldCellStyle = getCellStyle(workbook, "Arial", "11", ALIGN_CENTER, true, true);
-        footerCellStyle = getCellStyle(workbook, "Arial", "11", ALIGN_RIGHT, true, true);
-        feeCellStyle.setDataFormat(workbook.createDataFormat().getFormat("0.00%"));
-        curCellStyle.setDataFormat(workbook.createDataFormat().getFormat(Formula.formatString(2)));
-
-        //Шапка отчета///////////////////////////////////////////////////////////////////////////////////
-        Carrier carrier = BillingFileUtils.getCarrier(loadAndGroupTickets.getBillingFiles());
-        String carrierName = carrier == null ? "" : carrier.getName();
-        PoiSSUtil.createCellAndSetValue(sheet.getRow(6), 2, carrierName, capCellStyle);  //Название АК
-
+        ArrayList<Integer> groupRows = new ArrayList<Integer>();
 
         /////////////эту часть нужно оформить в цикле, с перебором по валютам/////////////////////////////
+        int numBefore = sheet.getNumMergedRegions();
         createHeaders(sheet, rowNum, "810"); //временно указан код рубля, заменить при создании цикла
         rowNum = rowNum + 4;
-
+        int startGroupRow = rowNum;
         int i = 1;
         for (ReportRecord revenueRecord : reportRecords) {
             if (i % 100 == 0 && stopped.get()) {
@@ -92,10 +80,22 @@ public class SvExcelTicketInfoReportBuilder implements ReportBuilder {
             i++;
         }
 
-        createFooters(sheet, rowNum, "810");//временно указан код рубля, заменить при создании цикла
+        createFooters(sheet, startGroupRow, rowNum, "810");//временно указан код рубля, заменить при создании цикла
         rowNum++;
+        groupRows.add(rowNum);
+        setBordersToMergedCells(workbook, sheet, numBefore+1);
         /////////////////конец цикла перебора по валютам///////////////////////////////////////////////////
 
+        //Шапка отчета///////////////////////////////////////////////////////////////////////////////////
+        Carrier carrier = BillingFileUtils.getCarrier(loadAndGroupTickets.getBillingFiles());
+        String carrierName = carrier == null ? "" : carrier.getName();
+        PoiSSUtil.createCellAndSetValue(sheet.getRow(6), 2, carrierName, capCellStyle);  //Название АК
+        //формулы для подсчета общего количества Gross amount и Fee amount в шапке
+        if (!groupRows.isEmpty()) {
+            PoiSSUtil.createCellAndSetFormula(sheet.getRow(15), 9, Formula.totalSettlementTicketInfo("J", groupRows), curCellStyle);
+            PoiSSUtil.createCellAndSetFormula(sheet.getRow(15), 10, Formula.totalSettlementTicketInfo("K", groupRows), curCellStyle);
+        }
+        sheet.setForceFormulaRecalculation(true);
     }
 
     @Override
@@ -106,6 +106,21 @@ public class SvExcelTicketInfoReportBuilder implements ReportBuilder {
         }
         boolean isConsolidate = 1 < loadAndGroupTickets.getBillingFiles().size();
         Workbook workbook = PoiSSUtil.createWorkBookFromTemplate(TEMPLATE_PATH);
+
+        feeCellStyle = getCellStyle(workbook, "Arial", "11", ALIGN_CENTER, false, true);
+        curCellStyle = getCellStyle(workbook, "Arial", "11", ALIGN_RIGHT, false, true);
+        anyCellStyle = getCellStyle(workbook, "Arial", "11", ALIGN_CENTER, false, true);
+        capCellStyle = getCellStyle(workbook, "Arial", "11", ALIGN_LEFT, false, false);
+        bigCellStyle = getCellStyle(workbook, "Arial", "16", ALIGN_CENTER, true, false);
+        boldCellStyle = getCellStyle(workbook, "Arial", "11", ALIGN_CENTER, true, true);
+        footerCellStyle = getCellStyle(workbook, "Arial", "11", ALIGN_RIGHT, true, true);
+        boldCurCellStyle = getCellStyle(workbook, "Arial", "11", ALIGN_RIGHT, true, true);
+        feeCellStyle.setDataFormat(workbook.createDataFormat().getFormat("0.00%"));
+        curCellStyle.setDataFormat(workbook.createDataFormat().getFormat(Formula.formatString(2)));
+        boldCurCellStyle.setDataFormat(workbook.createDataFormat().getFormat(Formula.formatString(2)));
+        curCellStyle.setIndention((short) 1);
+        boldCurCellStyle.setIndention((short) 1);
+
         try {
             buildMainTicketInfoSheet(workbook, stopped, loadAndGroupTickets);
         } catch (InterruptedException e) {
@@ -135,7 +150,6 @@ public class SvExcelTicketInfoReportBuilder implements ReportBuilder {
      * Задаётся порядок следования столбцов
      */
     protected enum RowName {
-        BLANK1(""),
         DATE_PROCESSING("Processing date"),
         DATE_OPERATION("Transaction date"),
         DOCUMENT_NUMBER("Ticket No"),
@@ -162,10 +176,10 @@ public class SvExcelTicketInfoReportBuilder implements ReportBuilder {
         public int getColumnNumber() {
             int i = 0;
             for (RowName rowName : RowName.values()) {
-                if (this.equals(rowName)) return i;
+                if (this.equals(rowName)) return i+1;
                 i++;
             }
-            return i;
+            return i+1;
         }
     }
 
@@ -198,11 +212,17 @@ public class SvExcelTicketInfoReportBuilder implements ReportBuilder {
         }
     }
 
-    protected void createFooters(Sheet sheet, int row, String code) {
+    protected void createFooters(Sheet sheet, int startRow, int row, String code) {
+        //создание футера для блока валюты
         Row footerRow = sheet.createRow(row);
         sheet.addMergedRegion(CellRangeAddress.valueOf("$B$" + (row+1) + ":$F$" + (row+1)));
         PoiSSUtil.createCellAndSetValue(footerRow, 1, "Total for "+ getCurrencyName(code) + " (" + code + "):", footerCellStyle);
+        PoiSSUtil.createCellAndSetValue(footerRow, 6, getCurrencyName(code), boldCellStyle);
+        PoiSSUtil.createCellAndSetFormula(footerRow, 7, Formula.summGroupForTicketInfo("H", startRow+1, row), boldCurCellStyle);
         PoiSSUtil.createCellAndSetValue(footerRow, 8, "RUR", boldCellStyle);
+        PoiSSUtil.createCellAndSetFormula(footerRow, 9, Formula.summGroupForTicketInfo("J", startRow+1, row), boldCurCellStyle);
+        PoiSSUtil.createCellAndSetFormula(footerRow, 10, Formula.summGroupForTicketInfo("K", startRow+1, row), boldCurCellStyle);
+        PoiSSUtil.createCellAndSetFormula(footerRow, 11, Formula.summGroupForTicketInfo("L", startRow+1, row), boldCurCellStyle);
     }
 
     protected void createRecords(Workbook workbook, Row row, ReportRecord revenueRecord, RowNumParams rowNumParams) {
@@ -375,6 +395,20 @@ public class SvExcelTicketInfoReportBuilder implements ReportBuilder {
             }
         }
         return cs;
+    }
+
+    private void setBordersToMergedCells(Workbook workBook, Sheet sheet, int start) {
+        //добавление границ для обьединенных ячеек
+        int n = sheet.getNumMergedRegions();//получить новое количество обьединенных регионов
+        if (n > start) {//если новое количество больше старого, т.е. есть что обрисовывать...
+            for (int i=start; i< n; i++) {//пройтись по всем новым обьединениям ячеек и дорисовать границы
+                CellRangeAddress rangeAddress = sheet.getMergedRegion(i);
+                RegionUtil.setBorderTop(BORDER_MEDIUM, rangeAddress, sheet, workBook);
+                RegionUtil.setBorderLeft(BORDER_MEDIUM, rangeAddress, sheet, workBook);
+                RegionUtil.setBorderRight(BORDER_MEDIUM, rangeAddress, sheet, workBook);
+                RegionUtil.setBorderBottom(BORDER_MEDIUM, rangeAddress, sheet, workBook);
+            }
+        }
     }
 
     @Override

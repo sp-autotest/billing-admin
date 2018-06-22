@@ -2,8 +2,10 @@ package ru.bpc.billing.service.report.revenue;
 
 import org.apache.commons.lang.StringUtils;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 
 /**
  * User: Krainov
@@ -24,6 +26,7 @@ public abstract class Formula {
     private static final String FROM_REJECT_LIST = "'Rejects, Сhargebacks'!%s%d";
     private static final String SUM_FROM_START_TO_FINISH = "SUM(%s%d:%s%d)";
     private static final String NET_IN_RUB_TO_TICKET_INFO = "J%d+K%d";
+    private static final String SUM_GROUP_TO_TICKET_INFO = "SUM(%s%d:%s%d)";
 
     public final static String feeInCurrencyOperation(int rowNum) {
         return String.format(FEE_IN_CURRENCY_OPERATION, rowNum, rowNum);
@@ -287,6 +290,22 @@ public abstract class Formula {
         rowNum++;
         return String.format(NET_IN_RUB_TO_TICKET_INFO, rowNum, rowNum);
     }
+
+    public final static String summGroupForTicketInfo(String colName, int start, int finish) {
+        return String.format(SUM_GROUP_TO_TICKET_INFO, colName, start, colName, finish);
+    }
+
+    public final static String totalSettlementTicketInfo(String colName, ArrayList<Integer> rows) {
+        StringBuilder total = new StringBuilder();
+        if (null != total) {
+            for (Integer row : rows) {
+                total.append(colName).append(row+"+");//простая сумма ячеек с суммами по группам
+            }
+            total.deleteCharAt(total.length()-1);//удалить плюс вконце формулы
+        }
+        return total.toString();
+    }
+
 
     public static String formatString(int minorUnit) {
         if (minorUnit == 0) {
