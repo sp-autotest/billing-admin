@@ -1,5 +1,7 @@
 package ru.bpc.billing.service.report.revenue.sv;
 
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
 import org.apache.commons.lang.StringUtils;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
@@ -17,20 +19,15 @@ import ru.bpc.billing.domain.report.ReportRecord;
 import ru.bpc.billing.service.ApplicationService;
 import ru.bpc.billing.service.CurrencyService;
 import ru.bpc.billing.service.ISystem;
-import ru.bpc.billing.service.report.LoadAndGroupTickets;
-import ru.bpc.billing.service.report.ReportBuilder;
-import ru.bpc.billing.service.report.ReportBuildException;
+import ru.bpc.billing.service.report.*;
 import ru.bpc.billing.service.report.revenue.Formula;
 import ru.bpc.billing.util.BillingFileUtils;
 import ru.bpc.billing.util.poi.PoiSSUtil;
-
 import javax.annotation.Resource;
 import java.io.File;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Currency;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.poi.ss.usermodel.CellStyle.*;
@@ -41,57 +38,87 @@ public class SvExcelTicketInfoReportBuilder implements ReportBuilder {
     private static final String TEMPLATE_PATH = "ticketInfoReportTemplate.xlsx";
     private static final int MAIN_SHEET_INDEX = 0;
     private static final int REJECT_SHEET_INDEX = 1;
-    private static final int MAIN_START_ROW = 19;
-    private static final int REJECT_START_ROW = 17;
+    private static final int MAIN_START_ROW = 18;
+    private static final int REJECT_START_ROW = 16;
+    private CellStyle feeCellStyle;
+    private CellStyle curCellStyle;
+    private CellStyle bigCellStyle;
+    private CellStyle anyCellStyle;
+    private CellStyle capCellStyle;
+    private CellStyle boldCellStyle;
+    private CellStyle footerCellStyle;
+    private CellStyle boldCurCellStyle;
     private static Logger logger = LoggerFactory.getLogger(SvExcelRevenueOperationRegisterReportBuilder.class);
     private SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd_");
-    protected CellStyle feeCellStyle;
-    protected CellStyle curCellStyle;
-    protected CellStyle bigCellStyle;
-    protected CellStyle anyCellStyle;
-    protected CellStyle capCellStyle;
-    protected CellStyle boldCellStyle;
-    protected CellStyle footerCellStyle;
-    protected CellStyle boldCurCellStyle;
+    private HashSet<String> currencyCodes = new HashSet<>();
 
     @Resource
     private ApplicationService applicationService;
     @Resource
     protected MessageSource messageSource;
 
-    protected void buildMainTicketInfoSheet(Workbook workbook, AtomicBoolean stopped, LoadAndGroupTickets loadAndGroupTickets) throws InterruptedException {
-        List<ReportRecord> reportRecords = loadAndGroupTickets.getReportRecords();
-        Sheet sheet = workbook.getSheetAt(MAIN_SHEET_INDEX);
-        int rowNum = MAIN_START_ROW;
-        ArrayList<Integer> totalGroupRows = new ArrayList<>();//массив, содержащий номера строк с итогами каждой группы валюты
+    protected ArrayList<ReportRecord> dataPreparation(Sheet sheet, AtomicBoolean stopped, LoadAndGroupTickets loadAndGroupTickets) throws InterruptedException {
+        String processingDate = null;
+        //множества для сбора информации для шапки отчета
+        currencyCodes.clear();
+        TreeSet<String> transDates = new TreeSet<>();
+        HashSet<String> fileTypes = new HashSet<>();
+        HashSet<String> cardBrands = new HashSet<>();
+        HashSet<String> currencyNames = new HashSet<>();
+        ArrayList<ReportRecord> selectedReportRecords = new ArrayList<>();
 
-        /////////////эту часть нужно оформить в цикле, с перебором по валютам/////////////////////////////
-        int numBefore = sheet.getNumMergedRegions();//сохранить количество обьединений ячеек на начало группы (для отрисовки рамок в группе)
-        createHeaders(sheet, rowNum, "810"); //создать хидер для группы с валютой, временно указан код рубля, заменить при создании цикла
-        rowNum = rowNum + 4;//хидер занимает 4 строки, прибавить к текущему номеру строки
-        int startGroupRow = rowNum;//сохранить номер строки, с которой начинается группа с валютой
+        List<ReportRecord> reportRecords = loadAndGroupTickets.getReportRecords();
         int i = 1;
         for (ReportRecord revenueRecord : reportRecords) {
             if (i % 100 == 0 && stopped.get()) {
                 throw new InterruptedException("Interrupted");
             }
             if (null == revenueRecord.getBoRecord() || !revenueRecord.getBoRecord().isSuccess()) continue;
-            Row row = sheet.createRow(rowNum);
-            fillTicketInfoRecordToExcelRow(workbook, row, revenueRecord);
-            rowNum++;
             i++;
+            selectedReportRecords.add(revenueRecord);
+            BORecord revenue = revenueRecord.getBoRecord();
+            if (null == processingDate) processingDate = revenue.getOPER_DATE();
+            currencyCodes.add(revenue.getCURRENCY_MPS());
+            transDates.add(revenue.getAUTH_DATE());
+            fileTypes.add(revenue.getTYPE_FILE());
+            cardBrands.add(getMpsFullName(revenue.getOperationType().getType()));
+            currencyNames.add(getCurrencyName(revenue.getCURRENCY_MPS()));
         }
 
-        createFooters(sheet, startGroupRow, rowNum, "810");//временно указан код рубля, заменить при создании цикла
-        rowNum++;
-        totalGroupRows.add(rowNum);//сохранить номер строки с итогами по группе для использования в формулах шапки
-        setBordersToMergedCells(workbook, sheet, numBefore+1);//дорисовать границы новым обьединениям группы
-        /////////////////конец будущего цикла перебора по валютам///////////////////////////////////////////////////
-
         //Шапка отчета///////////////////////////////////////////////////////////////////////////////////
+        PoiSSUtil.createCellAndSetValue(sheet.getRow(4), 2, processingDate, capCellStyle);  //Processing Date
+        PoiSSUtil.createCellAndSetValue(sheet.getRow(5), 2, printDashSet(transDates), capCellStyle);  //Transaction Date
         Carrier carrier = BillingFileUtils.getCarrier(loadAndGroupTickets.getBillingFiles());
         String carrierName = carrier == null ? "" : carrier.getName();
         PoiSSUtil.createCellAndSetValue(sheet.getRow(6), 2, carrierName, capCellStyle);  //Название АК
+        PoiSSUtil.createCellAndSetValue(sheet.getRow(7), 2, printComaSet(fileTypes), capCellStyle);  //Тип транзакции
+        PoiSSUtil.createCellAndSetValue(sheet.getRow(8), 2, printComaSet(cardBrands), capCellStyle);  //Название МПС
+        PoiSSUtil.createCellAndSetValue(sheet.getRow(9), 2, printComaSet(currencyNames), capCellStyle);  //Название валюты
+        return selectedReportRecords;
+    }
+
+    protected void buildMainTicketInfoSheet(Workbook workbook, AtomicBoolean stopped, LoadAndGroupTickets loadAndGroupTickets) throws InterruptedException {
+        Sheet sheet = workbook.getSheetAt(MAIN_SHEET_INDEX);
+        ArrayList<ReportRecord> reportRecords = dataPreparation(sheet,stopped,loadAndGroupTickets);
+        ArrayList<Integer> totalGroupRows = new ArrayList<>();//список c номерами строк с итогами каждой группы валюты
+        int rowNum = MAIN_START_ROW;
+        for (String code : currencyCodes) {
+            int numBefore = sheet.getNumMergedRegions();//сохранить количество обьединений ячеек на начало группы (для отрисовки рамок в группе)
+            createHeaders(sheet, rowNum, code); //создать хидер для группы с валютой
+            rowNum = rowNum + 5;//хидер занимает 5 строк, прибавить к текущему номеру строки
+            int startGroupRow = rowNum;//сохранить номер строки, с которой начинается группа с валютой
+            for (ReportRecord revenueRecord : reportRecords) {
+                if (revenueRecord.getCurrencyMPS().equals(code)) {
+                    Row row = sheet.createRow(rowNum);
+                    fillTicketInfoRecordToExcelRow(workbook, row, revenueRecord);
+                    rowNum++;
+                }
+            }
+            createFooters(sheet, startGroupRow, rowNum, code);//создать футер для группы с валютой
+            rowNum++;
+            totalGroupRows.add(rowNum);//сохранить номер строки с итогами по группе для использования в формулах шапки
+            setBordersToMergedCells(workbook, sheet, numBefore + 1);//дорисовать границы новым обьединениям группы
+        }
         //формулы для подсчета общего количества Gross amount и Fee amount в шапке
         if (!totalGroupRows.isEmpty()) {
             PoiSSUtil.createCellAndSetFormula(sheet.getRow(15), 9, Formula.totalSettlementTicketInfo("J", totalGroupRows), curCellStyle);
@@ -112,17 +139,24 @@ public class SvExcelTicketInfoReportBuilder implements ReportBuilder {
         rowNum = rowNum + 4;//хидер занимает 4 строки, прибавить к текущему номеру строки
         int startGroupRow = rowNum;//сохранить номер строки, с которой начинается группа с валютой
         int i = 1;
-        for (ReportRecord revenueRecord : reportRecords) {
-            if (i % 100 == 0 && stopped.get()) {
-                throw new InterruptedException("Interrupted");
-            }
-            if (null == revenueRecord.getBoRecord() || revenueRecord.getBoRecord().isSuccess()) continue;
-            Row row = sheet.createRow(rowNum);
-            fillTicketInfoRecordToExcelRow(workbook, row, revenueRecord);
-            rowNum++;
-            i++;
-        }
-
+        /*for (String country : loadAndGroupTickets.groupedRejectTickets.keySet()) {
+            Multimap<RejectReportGroup, ReportRecord> recordMultimap = loadAndGroupTickets.groupedRejectTickets.get(country);
+            for (RejectReportGroup group : recordMultimap.keySet()) {
+                Collection<ReportRecord> reportRecords = recordMultimap.get(group);*/
+                for (ReportRecord revenueRecord : reportRecords) {
+                    if (i % 100 == 0 && stopped.get()) {
+                        throw new InterruptedException("Interrupted");
+                    }
+                if (null == revenueRecord.getBoRecord() || !revenueRecord.getBoRecord().isSuccess()) continue;
+                    if (revenueRecord.isReject()) {
+                        Row row = sheet.createRow(rowNum);
+                        fillTicketInfoRecordToExcelRow(workbook, row, revenueRecord);
+                        rowNum++;
+                        i++;
+                    }
+                }
+     /*       }
+        }*/
         createFooters(sheet, startGroupRow, rowNum, "810");//временно указан код рубля, заменить при создании цикла
         rowNum++;
         totalGroupRows.add(rowNum);//сохранить номер строки с итогами по группе для использования в формулах шапки
@@ -142,7 +176,6 @@ public class SvExcelTicketInfoReportBuilder implements ReportBuilder {
     }
 
 
-
     @Override
     public File build(LoadAndGroupTickets loadAndGroupTickets, AtomicBoolean stopped) throws ReportBuildException{
         StringBuilder fileFormats = new StringBuilder();
@@ -155,7 +188,7 @@ public class SvExcelTicketInfoReportBuilder implements ReportBuilder {
         feeCellStyle = getCellStyle(workbook, "Arial", "11", ALIGN_CENTER, false, true);
         curCellStyle = getCellStyle(workbook, "Arial", "11", ALIGN_RIGHT, false, true);
         anyCellStyle = getCellStyle(workbook, "Arial", "11", ALIGN_CENTER, false, true);
-        capCellStyle = getCellStyle(workbook, "Arial", "11", ALIGN_LEFT, false, false);
+        capCellStyle = getCellStyle(workbook, "Arial", "12", ALIGN_LEFT, false, false);
         bigCellStyle = getCellStyle(workbook, "Arial", "16", ALIGN_CENTER, true, false);
         boldCellStyle = getCellStyle(workbook, "Arial", "11", ALIGN_CENTER, true, true);
         footerCellStyle = getCellStyle(workbook, "Arial", "11", ALIGN_RIGHT, true, true);
@@ -167,7 +200,7 @@ public class SvExcelTicketInfoReportBuilder implements ReportBuilder {
         boldCurCellStyle.setIndention((short) 1);
 
         try {
-            buildRejectTicketInfoSheet(workbook, stopped, loadAndGroupTickets);
+            //buildRejectTicketInfoSheet(workbook, stopped, loadAndGroupTickets);
             buildMainTicketInfoSheet(workbook, stopped, loadAndGroupTickets);
         } catch (InterruptedException e) {
             throw new ReportBuildException("Error build operation register file",e);
@@ -237,14 +270,16 @@ public class SvExcelTicketInfoReportBuilder implements ReportBuilder {
 
     protected void createHeaders(Sheet sheet, int startHeaderRow, String code) {
         //создать верхние строки заголовка
-        Row rowHeaderCombining1 = sheet.createRow(startHeaderRow);
-        Row rowHeaderEmpty = sheet.createRow(startHeaderRow+1);
-        Row rowHeaderCombining2 = sheet.createRow(startHeaderRow+2);
-        rowHeaderEmpty.setHeight((short) 200);
+        Row rowHeaderEmpty1 = sheet.createRow(startHeaderRow);
+        Row rowHeaderCombining1 = sheet.createRow(startHeaderRow+1);
+        Row rowHeaderEmpty2 = sheet.createRow(startHeaderRow+2);
+        Row rowHeaderCombining2 = sheet.createRow(startHeaderRow+3);
+        rowHeaderEmpty1.setHeight((short) 200);
+        rowHeaderEmpty2.setHeight((short) 200);
         //обьединить ячейки в верхних строках заголовка
-        sheet.addMergedRegion(CellRangeAddress.valueOf("$B$" + (startHeaderRow+1) + ":$M$" + (startHeaderRow+1)));
-        sheet.addMergedRegion(CellRangeAddress.valueOf("$G$" + (startHeaderRow+3) + ":$H$" + (startHeaderRow+3)));
-        sheet.addMergedRegion(CellRangeAddress.valueOf("$I$" + (startHeaderRow+3) + ":$M$" + (startHeaderRow+3)));
+        sheet.addMergedRegion(CellRangeAddress.valueOf("$B$" + (startHeaderRow+2) + ":$M$" + (startHeaderRow+2)));
+        sheet.addMergedRegion(CellRangeAddress.valueOf("$G$" + (startHeaderRow+4) + ":$H$" + (startHeaderRow+4)));
+        sheet.addMergedRegion(CellRangeAddress.valueOf("$I$" + (startHeaderRow+4) + ":$M$" + (startHeaderRow+4)));
         //внести данные в верхние ячейки заголовка
         bigCellStyle.setFillPattern(SOLID_FOREGROUND);
         bigCellStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.index);
@@ -252,7 +287,7 @@ public class SvExcelTicketInfoReportBuilder implements ReportBuilder {
         PoiSSUtil.createCellAndSetValue(rowHeaderCombining2, 6, "Submission currency ", boldCellStyle);
         PoiSSUtil.createCellAndSetValue(rowHeaderCombining2, 8, "Settlement currency", boldCellStyle);
         //создать нижнюю полную строку заголовка
-        Row rowHeader= sheet.createRow(startHeaderRow+3);
+        Row rowHeader= sheet.createRow(startHeaderRow+4);
         for (RowName rowName : RowName.values()) {
             PoiSSUtil.createCellAndSetValue(rowHeader, rowName.getColumnNumber(), rowName.getrowNameEng(), boldCellStyle);
         }
@@ -379,7 +414,6 @@ public class SvExcelTicketInfoReportBuilder implements ReportBuilder {
         createRecords(workbook, row, revenueRecord, rowNumParams);
     }
 
-
     protected BigDecimal amountWithSign(BigDecimal amountRecord, int minorUnit, boolean isCredit) {
         if (null == amountRecord) return BigDecimal.ZERO;
         BigDecimal amount = amountRecord.movePointLeft(minorUnit);
@@ -391,6 +425,7 @@ public class SvExcelTicketInfoReportBuilder implements ReportBuilder {
     }
 
     protected String maskCardNumber(String pan) {
+        //маскирование части номера кредитной карты
         if (null != pan) {
             return  pan.substring(0, 4) + "********" + pan.substring(12);
         }
@@ -398,6 +433,7 @@ public class SvExcelTicketInfoReportBuilder implements ReportBuilder {
     }
 
     protected String getMpsFullName(String mps) {
+        //преобразование кода МПС в полное название
         if (null != mps) {
             if (mps.contains("VI")) {
                 return "Visa";
@@ -410,6 +446,7 @@ public class SvExcelTicketInfoReportBuilder implements ReportBuilder {
     }
 
     protected String getCurrencyName(String code) {
+        //преобразование кода валюты в название
         String alphabeticCode = null;
         if ( null != code ) {
             Currency currency = CurrencyService.findByNumericCode(code);
@@ -422,6 +459,7 @@ public class SvExcelTicketInfoReportBuilder implements ReportBuilder {
     }
 
     protected CellStyle getCellStyle(Workbook wb, String fontName, String fontHeight, short alignment, boolean bold, boolean border) {
+        //установка значений стилей ячейки
         CellStyle cs = wb.createCellStyle();
         Font font = wb.createFont();
         font.setFontName(fontName);
@@ -445,6 +483,19 @@ public class SvExcelTicketInfoReportBuilder implements ReportBuilder {
         return cs;
     }
 
+    protected  String printDashSet(TreeSet<String> ts) {
+        //формирование строки со значениями отсортированного множества
+        if (ts.size() == 1) return ts.first();
+        if (ts.size() > 1) return ts.first() + " - " + ts.last();
+        return "";
+    }
+
+    protected  String printComaSet(HashSet<String> hs) {
+        //формирование строки со значениями множества
+        if (hs.isEmpty()) return "";
+        return hs.toString().replace("[","").replace("]","");
+    }
+
     private void setBordersToMergedCells(Workbook workBook, Sheet sheet, int start) {
         //добавление границ для обьединенных ячеек
         int n = sheet.getNumMergedRegions();//получить новое количество обьединенных регионов
@@ -464,5 +515,7 @@ public class SvExcelTicketInfoReportBuilder implements ReportBuilder {
         return messageSource.getMessage(ISystem.SYSTEM_PREFIX + "report.excelTicketInfoSv",new Object[]{},
                 "Excel ticket info report for Smart Vista", LocaleContextHolder.getLocale());
     }
+
+
 
 }
