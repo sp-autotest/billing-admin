@@ -25,7 +25,7 @@ public class BoTaskStatusController {
     @RequestMapping(value = "/boTask/stop", method = RequestMethod.GET)
     @ResponseBody
     public String setStop() {
-//        boTaskStarterService.stop();
+        boTaskStarterService.stop();
         return "ok";
     }
 
