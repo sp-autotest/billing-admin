@@ -93,6 +93,7 @@ public class DefaultAutomateBoTask implements AutomateBoTask {
             mailReport.addUnit(mailReportUnit);
         } catch(Exception e) {
             log.error("Error processing bo files!!!", e);
+            mailReport.addUnit(mailReportUnit);
         } finally {
             mailer.sendMail(context.getEnvironment().getRequiredProperty("main.mail.sender"),
                     systemSettingsService.getString("mail.esupport"), mailReport.getSubject(),
@@ -337,6 +338,9 @@ public class DefaultAutomateBoTask implements AutomateBoTask {
 
     private boolean checkDate(String fileName) {
         String date = fileName.split("_")[1];
+        if(date.length() > 8)
+            date = date.substring(0, 8);
+
         LocalDate fileDate = LocalDate.parse(date, DateTimeFormatter.ofPattern("yyyyMMdd"));
         //return fileDate.equals(LocalDate.now().minusDays(BO_FILE_DAYS_DIFFER));
         return fileDate.equals(LocalDate.now());
