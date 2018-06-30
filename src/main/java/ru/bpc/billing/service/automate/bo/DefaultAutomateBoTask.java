@@ -345,8 +345,8 @@ public class DefaultAutomateBoTask implements AutomateBoTask {
             date = date.substring(0, 8);
 
         LocalDate fileDate = LocalDate.parse(date, DateTimeFormatter.ofPattern("yyyyMMdd"));
-        //return fileDate.equals(LocalDate.now().minusDays(BO_FILE_DAYS_DIFFER));
-        return fileDate.equals(LocalDate.now());
+        return fileDate.equals(LocalDate.now().minusDays(BO_FILE_DAYS_DIFFER));
+        //return fileDate.equals(LocalDate.now());
     }
 
     private boolean checkMask(String input) {
