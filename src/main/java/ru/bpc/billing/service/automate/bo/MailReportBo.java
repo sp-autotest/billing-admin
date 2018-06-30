@@ -32,7 +32,7 @@ public class MailReportBo {
     public String getBody() {
         StringBuilder sb = new StringBuilder();
         String bsListString = bsList.stream().map(BillingSystem::toStringEmail).collect(Collectors.toList()).toString();
-        sb.append("Обнаружены биллинговые системы для обработки: ").append(bsListString);
+        //sb.append("Обнаружены биллинговые системы для обработки: ").append(bsListString);
         for (MailReportUnitBo each : mailReportUnits) {
             sb.append("\n");
             sb.append(each.getReport());

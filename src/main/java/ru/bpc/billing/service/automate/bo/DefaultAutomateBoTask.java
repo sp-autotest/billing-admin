@@ -98,6 +98,9 @@ public class DefaultAutomateBoTask implements AutomateBoTask {
             mailer.sendMail(context.getEnvironment().getRequiredProperty("main.mail.sender"),
                     systemSettingsService.getString("mail.esupport"), mailReport.getSubject(),
                     mailReport.getBody(), getReportFiles(mailReportUnit.getAttachmentFiles()), false, "text/plain", "UTF-8");
+            mailer.sendMail(context.getEnvironment().getRequiredProperty("main.mail.sender"),
+                    systemSettingsService.getString("mail.raschet"), mailReport.getSubject(),
+                    mailReport.getBody(), getReportFiles(mailReportUnit.getAttachmentFiles()), false, "text/plain", "UTF-8");
             sendToBS(mailReportUnit, mailReport); /* послать отчет биллинговым сисетмам */
             isRunning = false;
         }
@@ -344,7 +347,6 @@ public class DefaultAutomateBoTask implements AutomateBoTask {
         LocalDate fileDate = LocalDate.parse(date, DateTimeFormatter.ofPattern("yyyyMMdd"));
         //return fileDate.equals(LocalDate.now().minusDays(BO_FILE_DAYS_DIFFER));
         return fileDate.equals(LocalDate.now());
-        //return true;
     }
 
     private boolean checkMask(String input) {

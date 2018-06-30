@@ -50,10 +50,6 @@ public class MailReportUnitBo {
         this.downloadedFiles = downloadedFiles;
     }
 
-//    public void addDecryptedFiles(List<File> decryptedFiles) {
-//        this.decryptedFiles = decryptedFiles;
-//    }
-
     public void addUploaded(List<BoDto> uploaded) {
         StringBuilder sb = new StringBuilder();
         for (BoDto each : uploaded) {
