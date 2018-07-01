@@ -80,7 +80,7 @@ public class MailReportUnitBo {
         ReportProcessingResult reportProcessingResult = dto.reportProcessingResult;
 
         for(BOProcessingResult boRes : reportProcessingResult.getBoProcessingResults()) {
-            sb.append("<table>");
+            sb.append("<table border='1'>");
 //            sb.append(String.format("\n\tФайл: %s", boRes.getOriginalFile().getName()));
             sb.append("<tr><td>").append("Файл").append("</td><td>").append(boRes.getOriginalFile().getName()).append("</td></tr>");
 //            sb.append(String.format("\n\tВсего записей: %d", boRes.getTotalRecords()));

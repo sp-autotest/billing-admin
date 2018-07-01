@@ -179,7 +179,7 @@ public class BOControllerService {
     private List<ProcessingFile> getBspForBo(List<BoDto> boDtos) {
         List<ProcessingFile> result = new ArrayList<>();
         for(BoDto bo : boDtos) {
-            String boDate = StringUtils.substringAfterLast(bo.getFileName(),"-").substring(0, 8);
+            String boDate = StringUtils.substringAfterLast(bo.getFileName(),"_").substring(0, 8);
             List<ProcessingFile> billings = processingFileRepository.getNotProcessedBillings(boDate);
             result.addAll(billings);
         }
