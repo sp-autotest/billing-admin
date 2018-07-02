@@ -106,7 +106,7 @@ public class DefaultMailer implements Mailer {
         try {
             message.setSentDate(new Date());
             message.setSubject(subject, "UTF-8");
-            message.setText(body, isNotBlank(encoding) ? encoding : DEFAULT_ENCODING);
+            message.setContent(body, isNotBlank(encoding) ? encoding : DEFAULT_ENCODING);
             if (isNotBlank(contentMimeType)) {
                 String contentTypeHeader = contentMimeType + (isNotBlank(encoding) ? "; charset=" + encoding : "");
                 message.setHeader("Content-Type", contentTypeHeader);
