@@ -247,7 +247,8 @@ public class SvExcelRevenueReportBuilder implements ReportBuilder {
     }
 
     static double roundDown4(double d) {
-        return (long) (d * 1e4) / 1e4;
+        //return (long) (d * 1e4) / 1e4;
+        return Math.round((d * 1e4)) / 1e4;
     }
 
     private void addRow(Workbook workbook, int indexSheet, int rowNum, String invoiceNumber, String ticketNumber,
