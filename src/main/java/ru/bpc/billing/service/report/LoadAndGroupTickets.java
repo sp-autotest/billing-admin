@@ -11,6 +11,7 @@ import ru.bpc.billing.service.CurrencyService;
 import ru.bpc.billing.util.CountryUtils;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -252,6 +253,12 @@ public class LoadAndGroupTickets {
         result.grossOperation = new BigDecimal(totalGrossOperation).movePointLeft(minorOperation);
         result.feeOperation = totalFeeOperation.movePointLeft(minorOperation);
         result.netOperation = result.grossOperation.add(result.feeOperation);
+
+        if(result.countryCode.equals("ISK")) {
+            result.grossOperation = result.grossOperation.divide(new BigDecimal(100.), 0, RoundingMode.DOWN);
+            result.feeOperation = result.feeOperation.divide(new BigDecimal(100.), 0, RoundingMode.DOWN);
+            result.netOperation = result.netOperation.divide(new BigDecimal(100.), 0, RoundingMode.DOWN);
+        }
 
         result.grossMps = new BigDecimal(totalGrossMps).movePointLeft(minorMps);
         result.feeMps = totalFeeMps.movePointLeft(minorMps);
