@@ -254,7 +254,7 @@ public class LoadAndGroupTickets {
         result.feeOperation = totalFeeOperation.movePointLeft(minorOperation);
         result.netOperation = result.grossOperation.add(result.feeOperation);
 
-        if(result.countryCode.equals("ISK")) {
+        if(currencyOperation.getCurrencyCode().equals("ISK")) {
             result.grossOperation = result.grossOperation.divide(new BigDecimal(100.), 0, RoundingMode.DOWN);
             result.feeOperation = result.feeOperation.divide(new BigDecimal(100.), 0, RoundingMode.DOWN);
             result.netOperation = result.netOperation.divide(new BigDecimal(100.), 0, RoundingMode.DOWN);
